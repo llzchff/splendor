@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">璀璨宝石 Splendor</string>
+    <string name="title_activity_main">璀璨宝石 Splendor</string>
+    <string name="package_name">com.splendor.android.renaissance</string>
+    <string name="custom_url_scheme">com.splendor.android.renaissance</string>
+</resources>

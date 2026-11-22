@@ -1,0 +1,18 @@
+{
+  "name": "璀璨宝石 · Splendor 安卓版",
+  "short_name": "璀璨宝石",
+  "description": "文艺复兴宝石桌游 Splendor 完整安卓横屏版（含基础版、璀璨都市四大扩展、单人挑战与局域网联机）",
+  "start_url": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#0c0f17",
+  "theme_color": "#0c0f17",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
