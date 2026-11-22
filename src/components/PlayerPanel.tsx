@@ -1,9 +1,10 @@
 import React from 'react';
+import { ART_GEM_CHIP } from '../art/assets';
 import { computePayment, getPlayerBonuses, getTotalTokens } from '../engine/payment';
 import { getPlayerPoints } from '../engine/rules';
 import { Card, GEM_COLORS, PlayerState } from '../engine/types';
 import { CardView } from './CardView';
-import { GemIcon, PLAYER_COLORS, StrongholdIcon } from './GemIcon';
+import { PLAYER_COLORS, StrongholdIcon } from './GemIcon';
 
 interface OpponentCardProps {
   player: PlayerState;
@@ -58,8 +59,8 @@ export const OpponentMiniCard: React.FC<OpponentCardProps> = ({
       <div className="opp-card__meta">
         <span>筹码 {totalTokens}/10</span>
         <span>预定 {player.reserved.length}/3</span>
-        {player.nobles.length > 0 && <span>贵族 {player.nobles.length}</span>}
-        {player.claimedCity && <span>城: {player.claimedCity.name}</span>}
+        {player.nobles.length > 0 && <span className="gold-text">贵族 {player.nobles.length}</span>}
+        {player.claimedCity && <span className="gold-text">城: {player.claimedCity.name}</span>}
         {strongholdsEnabled && (
           <span className="opp-card__sh">
             <StrongholdIcon color={color} size={11} /> {player.strongholdsRemaining}
@@ -104,7 +105,7 @@ export const ActivePlayerDock: React.FC<ActivePlayerDockProps> = ({
       className={`player-dock ${isMyTurn ? 'player-dock--active' : ''}`}
       style={{ '--seat-color': seatColor } as React.CSSProperties}
     >
-      {/* Left: Player Crest & Prestige */}
+      {/* Left: Gilded Crest & Prestige Shield */}
       <div className="player-dock__profile">
         <div className="player-dock__prestige">
           <span className="player-dock__prestige-val">{pts}</span>
@@ -118,8 +119,8 @@ export const ActivePlayerDock: React.FC<ActivePlayerDockProps> = ({
           </div>
           <div className="player-dock__stats">
             <span>筹码 {totalTokens}/10</span>
-            <span>发展卡 {player.cards.length}</span>
-            {player.nobles.length > 0 && <span>贵族 {player.nobles.length}</span>}
+            <span>矿卡 {player.cards.length}</span>
+            {player.nobles.length > 0 && <span className="gold-text">贵族 {player.nobles.length}</span>}
             {player.reservedNobles.length > 0 && (
               <span className="gold-text">定贵族 {player.reservedNobles.length}</span>
             )}
@@ -132,11 +133,7 @@ export const ActivePlayerDock: React.FC<ActivePlayerDockProps> = ({
               </span>
             )}
             {tradingPostsEnabled && (
-              <button
-                type="button"
-                className="dock-tp-btn"
-                onClick={onOpenTradingPosts}
-              >
+              <button type="button" className="dock-tp-btn" onClick={onOpenTradingPosts}>
                 徽章 {player.tradingPosts.length}/5
               </button>
             )}
@@ -144,36 +141,63 @@ export const ActivePlayerDock: React.FC<ActivePlayerDockProps> = ({
         </div>
       </div>
 
-      {/* Center: 5 Gem Columns (Bonus card discount + Tokens held) + Gold */}
+      {/* Center: Physical Stacked Mini Gem-Card Columns + Poker-Chip Token Stacks */}
       <div className="player-dock__resources">
-        {GEM_COLORS.map((c) => (
-          <div key={c} className={`dock-gem dock-gem--${c}`}>
-            <GemIcon color={c} size={18} />
-            <div className="dock-gem__nums">
-              <span className="dock-gem__bonus" title="永久宝石卡加成">
-                +{bonuses[c]}
-              </span>
-              <span className="dock-gem__tok" title="当前持有筹码">
-                {player.tokens[c]}
-              </span>
+        {GEM_COLORS.map((c) => {
+          const cardCount = bonuses[c];
+          const tokCount = player.tokens[c];
+          const stackLayers = Math.min(cardCount, 4);
+
+          return (
+            <div key={c} className={`tableau-col tableau-col--${c}`}>
+              {/* Fanned Mini Card Stack */}
+              <div className="tableau-cards" title={`永久 ${c} 宝石卡加成: +${cardCount}`}>
+                {cardCount > 0 ? (
+                  <div className="mini-card-stack">
+                    {Array.from({ length: stackLayers }).map((_, idx) => (
+                      <div
+                        key={idx}
+                        className={`mini-card-leaf mini-card-leaf--${c}`}
+                        style={{ transform: `translate(${idx * 2}px, ${-idx * 2.5}px)` }}
+                      />
+                    ))}
+                    <span className="mini-card-stack__val">{cardCount}</span>
+                  </div>
+                ) : (
+                  <div className="mini-card-empty">0</div>
+                )}
+              </div>
+
+              {/* Mini Poker Chip Token */}
+              <div
+                className={`tableau-chip ${tokCount === 0 ? 'tableau-chip--empty' : ''}`}
+                title={`持有筹码: ${tokCount}`}
+              >
+                <img src={ART_GEM_CHIP[c]} alt="" className="tableau-chip__img" draggable={false} />
+                <span className="tableau-chip__val">{tokCount}</span>
+              </div>
             </div>
+          );
+        })}
+
+        {/* Gold Joker Column */}
+        <div className="tableau-col tableau-col--gold">
+          <div className="tableau-cards">
+            <div className="mini-card-gold-label">百搭</div>
           </div>
-        ))}
-        <div className="dock-gem dock-gem--gold">
-          <GemIcon color="gold" size={18} />
-          <div className="dock-gem__nums">
-            <span className="dock-gem__bonus">百搭</span>
-            <span className="dock-gem__tok">{player.tokens.gold}</span>
+          <div className={`tableau-chip ${player.tokens.gold === 0 ? 'tableau-chip--empty' : ''}`}>
+            <img src={ART_GEM_CHIP.gold} alt="" className="tableau-chip__img" draggable={false} />
+            <span className="tableau-chip__val">{player.tokens.gold}</span>
           </div>
         </div>
       </div>
 
       {/* Right: Reserved Cards Hand (up to 3) */}
       <div className="player-dock__reserved">
-        <div className="player-dock__reserved-label">预定区 ({player.reserved.length}/3)</div>
+        <div className="player-dock__reserved-label">预定手牌 ({player.reserved.length}/3)</div>
         <div className="player-dock__reserved-cards">
           {player.reserved.length === 0 ? (
-            <div className="reserved-empty">点击牌桌卡或卡堆可预定</div>
+            <div className="reserved-empty">点击牌桌或牌堆预定</div>
           ) : (
             player.reserved.map((card) => {
               const affordable =

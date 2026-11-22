@@ -1,6 +1,6 @@
 import React from 'react';
+import { ART_GEM_CHIP } from '../art/assets';
 import { GEM_COLORS, GEM_LABELS_ZH, GemColor, GemCounts, TokenCounts } from '../engine/types';
-import { GemIcon } from './GemIcon';
 
 interface TokenBankProps {
   bank: TokenCounts;
@@ -33,11 +33,12 @@ export const TokenBank: React.FC<TokenBankProps> = ({
         {GEM_COLORS.map((color) => {
           const count = bank[color];
           const picked = selectedGems[color];
+          const visibleStack = Math.min(count, 4);
           const canClick =
             !disabled &&
             (picked > 0 ||
               (count > 0 &&
-                ((totalSelected === 0) ||
+                (totalSelected === 0 ||
                   (totalSelected === 1 &&
                     ((picked === 1 && count >= 4) ||
                       (picked === 0 && GEM_COLORS.every((k) => selectedGems[k] <= 1)))) ||
@@ -52,33 +53,62 @@ export const TokenBank: React.FC<TokenBankProps> = ({
               disabled={!canClick && picked === 0}
               onClick={() => onSelectGem(color)}
               className={[
-                'gem-chip',
-                `gem-chip--${color}`,
-                picked > 0 ? 'gem-chip--picked' : '',
-                count === 0 ? 'gem-chip--empty' : '',
+                'poker-stack',
+                `poker-stack--${color}`,
+                picked > 0 ? 'poker-stack--picked' : '',
+                count === 0 ? 'poker-stack--empty' : '',
               ]
                 .filter(Boolean)
                 .join(' ')}
               title={`${GEM_LABELS_ZH[color]}（剩余 ${count}）`}
             >
-              <div className="gem-chip__inner">
-                <GemIcon color={color} size={26} />
+              {/* Physical 3D stacked chip layers beneath the top chip */}
+              <div className="poker-stack__pile">
+                {Array.from({ length: Math.max(1, visibleStack) }).map((_, layerIdx) => {
+                  const isTop = layerIdx === Math.max(1, visibleStack) - 1;
+                  return (
+                    <img
+                      key={layerIdx}
+                      src={ART_GEM_CHIP[color]}
+                      alt=""
+                      draggable={false}
+                      className={`poker-stack__chip ${isTop ? 'poker-stack__chip--top' : 'poker-stack__chip--under'}`}
+                      style={{
+                        transform: `translateY(${-layerIdx * 2.5}px)`,
+                      }}
+                    />
+                  );
+                })}
               </div>
-              <span className="gem-chip__count">{count}</span>
-              {picked > 0 && <span className="gem-chip__picked-badge">+{picked}</span>}
+              <span className="poker-stack__count">{count}</span>
+              {picked > 0 && <span className="poker-stack__picked-badge">+{picked}</span>}
             </button>
           );
         })}
 
-        {/* Gold Joker Stack (obtained via reserving cards) */}
+        {/* Gold Crown Joker Stack */}
         <div
-          className={`gem-chip gem-chip--gold gem-chip--readonly ${bank.gold === 0 ? 'gem-chip--empty' : ''}`}
+          className={`poker-stack poker-stack--gold poker-stack--readonly ${bank.gold === 0 ? 'poker-stack--empty' : ''}`}
           title={`黄金百搭（剩余 ${bank.gold}，预定发展卡时获得）`}
         >
-          <div className="gem-chip__inner">
-            <GemIcon color="gold" size={26} />
+          <div className="poker-stack__pile">
+            {Array.from({ length: Math.max(1, Math.min(bank.gold, 4)) }).map((_, layerIdx) => {
+              const isTop = layerIdx === Math.max(1, Math.min(bank.gold, 4)) - 1;
+              return (
+                <img
+                  key={layerIdx}
+                  src={ART_GEM_CHIP.gold}
+                  alt=""
+                  draggable={false}
+                  className={`poker-stack__chip ${isTop ? 'poker-stack__chip--top' : 'poker-stack__chip--under'}`}
+                  style={{
+                    transform: `translateY(${-layerIdx * 2.5}px)`,
+                  }}
+                />
+              );
+            })}
           </div>
-          <span className="gem-chip__count">{bank.gold}</span>
+          <span className="poker-stack__count">{bank.gold}</span>
         </div>
       </div>
 
@@ -94,11 +124,7 @@ export const TokenBank: React.FC<TokenBankProps> = ({
             >
               拿取 ({totalSelected})
             </button>
-            <button
-              type="button"
-              className="btn btn--ghost btn--xs"
-              onClick={onClearSelection}
-            >
+            <button type="button" className="btn btn--ghost btn--xs" onClick={onClearSelection}>
               重置
             </button>
           </>
