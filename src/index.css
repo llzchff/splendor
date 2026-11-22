@@ -1700,3 +1700,396 @@ body,
 @media (max-height: 440px) {
   .challenge-grid { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* =====================================================================
+   v4.0 — PHYSICAL 3D TABLETOP LAYER
+   Perspective table, cylinder chip stacks, card thickness, gloss & lighting
+   ===================================================================== */
+
+/* Warm overhead lamp pooling on the felt */
+.steam-playfield {
+  perspective: 1150px;
+  perspective-origin: 50% -10%;
+}
+
+.steam-playfield::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 60% 55% at 46% 42%, rgba(255, 214, 150, 0.13) 0%, rgba(255, 214, 150, 0.04) 45%, transparent 70%),
+    radial-gradient(ellipse at 50% 120%, rgba(0, 0, 0, 0.55) 0%, transparent 55%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.steam-playfield > *:not(.steam-whisper-bar) {
+  position: relative;
+  z-index: 1;
+}
+
+/* Tilt the table plane away from the viewer (top row recedes like Steam's camera) */
+.steam-cards-stage,
+.steam-bank,
+.steam-nobles-col {
+  transform-origin: 50% 100%;
+  transform-style: preserve-3d;
+  transform: rotateX(calc(12deg + var(--tilt-y, 0deg))) rotateY(var(--tilt-x, 0deg));
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.steam-tier-row {
+  transform-style: preserve-3d;
+}
+
+/* ---------- Development cards: real card thickness, cast shadow, gloss ---------- */
+.splendor-card {
+  --card-thick: 0 1px 0 #efe7d4, 0 2px 0 #cfc3a9, 0 3px 0 #a3967d, 0 4px 0 #73684f;
+  box-shadow:
+    var(--card-thick),
+    0 12px 18px -4px rgba(0, 0, 0, 0.78),
+    0 4px 6px rgba(0, 0, 0, 0.45);
+  transform-style: preserve-3d;
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.splendor-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    linear-gradient(118deg, transparent 32%, rgba(255, 255, 255, 0.24) 46%, rgba(255, 255, 255, 0.05) 52%, transparent 62%),
+    radial-gradient(ellipse at 18% 8%, rgba(255, 255, 255, 0.18), transparent 45%);
+  background-size: 260% 100%, 100% 100%;
+  background-position: 110% 0, 0 0;
+  transition: background-position 0.7s ease;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.splendor-card:hover::after,
+.splendor-card--selected::after {
+  background-position: -20% 0, 0 0;
+}
+
+.splendor-card:hover {
+  transform: translateZ(22px) translateY(-4px);
+  box-shadow:
+    var(--card-thick),
+    0 24px 26px -6px rgba(0, 0, 0, 0.82),
+    0 8px 10px rgba(0, 0, 0, 0.5);
+}
+
+.splendor-card--affordable {
+  box-shadow:
+    var(--card-thick),
+    0 0 10px rgba(34, 255, 85, 0.75),
+    0 0 22px rgba(34, 255, 85, 0.4),
+    0 12px 18px -4px rgba(0, 0, 0, 0.8);
+}
+
+.splendor-card--selected {
+  transform: translateZ(26px) translateY(-5px);
+  box-shadow:
+    var(--card-thick),
+    0 0 18px rgba(250, 204, 21, 0.85),
+    0 24px 26px -6px rgba(0, 0, 0, 0.85);
+}
+
+.splendor-card--compact,
+.splendor-card--zoomed {
+  --card-thick: 0 1px 0 #efe7d4, 0 2px 0 #a3967d;
+}
+
+.splendor-card--zoomed {
+  transform: rotateY(-8deg) rotateX(4deg);
+  box-shadow:
+    0 1px 0 #efe7d4, 0 2px 0 #cfc3a9, 0 3px 0 #a3967d, 0 4px 0 #73684f, 0 5px 0 #5b523f,
+    -14px 26px 30px rgba(0, 0, 0, 0.8);
+}
+
+.action-sheet__card-row {
+  perspective: 700px;
+}
+
+/* Cost coins become little domed tokens */
+.cost-pill {
+  box-shadow:
+    0 1.5px 0 rgba(0, 0, 0, 0.55),
+    0 3px 5px rgba(0, 0, 0, 0.75),
+    inset 0 2px 2px rgba(255, 255, 255, 0.55),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.35);
+}
+
+/* Nobles: physical tiles casually laid at slight angles, with tile thickness */
+.steam-noble-tile {
+  box-shadow:
+    0 1px 0 #d8c08a, 0 2px 0 #a88d52, 0 3px 0 #6e5a2e,
+    0 12px 16px -4px rgba(0, 0, 0, 0.85);
+}
+
+.steam-noble-tile:nth-child(odd) { transform: rotate(-2.2deg); }
+.steam-noble-tile:nth-child(even) { transform: rotate(1.8deg); }
+.steam-noble-tile:hover { transform: rotate(0deg) translateZ(18px) scale(1.06); }
+
+/* Decks: deeper stack edge */
+.steam-deck-3d {
+  box-shadow:
+    -2px 0 0 #f1ead9,
+    -3px 1px 0 #d7cdb7,
+    -4px 1px 0 #f1ead9,
+    -5px 2px 0 #c3b89f,
+    -6px 2px 0 #e6dcc6,
+    -7px 3px 0 #a99d83,
+    -10px 6px 14px rgba(0, 0, 0, 0.88);
+}
+
+/* ---------- 3D cylinder poker-chip stacks ---------- */
+.steam-bank {
+  --chip-w: clamp(40px, 10.5dvh, 60px);
+  --chip-t: 4px;
+}
+
+.poker-stack {
+  width: calc(var(--chip-w) + 10px);
+  height: auto;
+  min-height: calc(var(--chip-w) * 0.78 + 4 * var(--chip-t) + 6px);
+  align-items: flex-end;
+}
+
+.chip-pile {
+  position: relative;
+  width: var(--chip-w);
+  height: calc(var(--chip-w) * 0.78 + var(--layers) * var(--chip-t));
+  filter: drop-shadow(0 7px 6px rgba(0, 0, 0, 0.7));
+}
+
+.chip3d {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: calc(var(--chip-w) * 0.78 + var(--chip-t));
+  bottom: calc(var(--i) * var(--chip-t));
+}
+
+.chip3d__face {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: calc(var(--chip-w) * 0.78);
+  border-radius: 50%;
+  object-fit: cover;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.chip3d__edge {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: calc(var(--chip-w) * 0.78);
+  border-radius: 50%;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.28) 0%, rgba(0, 0, 0, 0) 45%, rgba(0, 0, 0, 0.55) 100%),
+    repeating-linear-gradient(90deg, var(--edge) 0 11%, var(--notch) 11% 16%);
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.6);
+  z-index: 1;
+}
+
+.chip3d--white { --edge: #cdd5df; --notch: #8b6a2e; }
+.chip3d--blue { --edge: #1d3f99; --notch: #e9d9a8; }
+.chip3d--green { --edge: #08704f; --notch: #e9d9a8; }
+.chip3d--red { --edge: #a3162c; --notch: #e9d9a8; }
+.chip3d--black { --edge: #262a33; --notch: #c9a24a; }
+.chip3d--gold { --edge: #c99a2e; --notch: #7a5414; }
+
+.poker-stack--picked .chip3d:last-child .chip3d__face {
+  filter: drop-shadow(0 0 9px #fde047);
+}
+
+.poker-stack--picked .chip-pile {
+  filter: drop-shadow(0 14px 10px rgba(0, 0, 0, 0.75));
+}
+
+.poker-stack__count {
+  bottom: 0;
+  left: -6px;
+}
+
+/* Bottom tray & flying chips: give flat chips a visible rim */
+.steam-gem-slot__chip img,
+.fx-flying-chip__img {
+  filter: drop-shadow(0 2px 0 rgba(40, 26, 8, 0.95)) drop-shadow(0 4px 5px rgba(0, 0, 0, 0.8));
+}
+
+/* Bevelled metal tray */
+.steam-bottom-tray {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0) 30%),
+    linear-gradient(180deg, rgba(40, 40, 47, 0.96) 0%, rgba(14, 14, 18, 0.99) 100%);
+  box-shadow:
+    0 -6px 22px rgba(0, 0, 0, 0.85),
+    inset 0 2px 0 rgba(255, 240, 184, 0.45),
+    inset 0 -8px 14px rgba(0, 0, 0, 0.6);
+}
+
+.steam-gem-slot {
+  box-shadow:
+    inset 0 3px 8px rgba(0, 0, 0, 0.6),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.18),
+    0 1px 0 rgba(255, 240, 184, 0.15);
+}
+
+/* Portrait frames: gilded bevel */
+.steam-portrait-frame {
+  box-shadow:
+    0 1px 0 #f4dc9c,
+    0 3px 0 #7a5a1e,
+    0 10px 16px rgba(0, 0, 0, 0.82),
+    inset 0 0 0 1px rgba(255, 240, 184, 0.5);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .steam-cards-stage,
+  .steam-bank,
+  .steam-nobles-col {
+    transform: rotateX(12deg);
+    transition: none;
+  }
+}
+
+/* =====================================================================
+   v4.0 — MOTION DIRECTOR VISUALS (card flights, deal flip, coin pops)
+   ===================================================================== */
+.splendor-card__back {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  z-index: 7;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+.fx-layer--flights {
+  z-index: 34;
+  perspective: 900px;
+}
+
+.fx-flight {
+  position: fixed;
+  pointer-events: none;
+  will-change: transform, opacity;
+  transform-style: preserve-3d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fx-flight--card .splendor-card {
+  height: 100%;
+  box-shadow:
+    0 1px 0 #efe7d4, 0 2px 0 #cfc3a9, 0 3px 0 #a3967d,
+    0 26px 30px -6px rgba(0, 0, 0, 0.85);
+  animation: none;
+}
+
+.fx-flight__back {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1.5px solid #e6c068;
+  box-shadow: 0 1px 0 #efe7d4, 0 3px 0 #a3967d, 0 18px 24px rgba(0, 0, 0, 0.85);
+}
+
+.fx-flight__chip {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  filter: drop-shadow(0 3px 0 rgba(40, 26, 8, 0.95)) drop-shadow(0 10px 10px rgba(0, 0, 0, 0.75));
+}
+
+.fx-flight__noble {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 7px;
+  overflow: hidden;
+  border: 2px solid #fde68a;
+  box-shadow: 0 0 22px rgba(250, 204, 21, 0.8), 0 18px 24px rgba(0, 0, 0, 0.85);
+}
+
+.fx-flight__noble img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.fx-flight__noble span {
+  position: absolute;
+  right: 4px;
+  bottom: 2px;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 900;
+  font-size: 22px;
+  color: #fffef5;
+  text-shadow: 0 2px 5px #000;
+}
+
+@keyframes coinPop {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.35); filter: brightness(1.6); box-shadow: 0 0 16px rgba(253, 224, 71, 0.95); }
+  100% { transform: scale(1); }
+}
+
+.coin-pop {
+  animation: coinPop 0.38s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+@keyframes slotPop {
+  0% { transform: scale(0.4); opacity: 0; }
+  60% { transform: scale(1.35); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+.slot-pop {
+  display: inline-block;
+  animation: slotPop 0.45s cubic-bezier(0.3, 1.6, 0.5, 1) 0.65s both;
+}
+
+/* Active player's turn: soft breathing gold halo (Steam turn indicator) */
+@keyframes turnHalo {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.45), 0 0 14px rgba(250, 204, 21, 0.45), 0 6px 16px rgba(0, 0, 0, 0.85); }
+  50% { box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.75), 0 0 26px rgba(250, 204, 21, 0.85), 0 6px 16px rgba(0, 0, 0, 0.85); }
+}
+
+.steam-portrait-card--active .steam-portrait-frame,
+.steam-self-portrait--active .steam-portrait-frame {
+  animation: turnHalo 1.8s ease-in-out infinite;
+}
+
+/* Affordable cards breathe their green glow like Steam */
+@keyframes affordBreath {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.08); }
+}
+
+.splendor-card--affordable {
+  animation: affordBreath 2.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .coin-pop, .slot-pop, .splendor-card--affordable,
+  .steam-portrait-card--active .steam-portrait-frame,
+  .steam-self-portrait--active .steam-portrait-frame {
+    animation: none;
+  }
+}

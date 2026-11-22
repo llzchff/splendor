@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ART_GEM_CHIP } from '../art/assets';
 import { computePayment, getPlayerBonuses, getTotalTokens } from '../engine/payment';
 import { getPlayerPoints } from '../engine/rules';
@@ -12,6 +12,33 @@ const PLAYER_PORTRAITS = [
   './art/noble_2.jpg', // Seat 2: Opponent 2
   './art/noble_3.jpg', // Seat 3: Opponent 3
 ] as const;
+
+/**
+ * Gold prestige medallion that waits for the incoming card / noble to land,
+ * then ticks up one point at a time with a coin "pop" on every step.
+ */
+const PrestigeCoin: React.FC<{ value: number; self?: boolean }> = ({ value, self = false }) => {
+  const [shown, setShown] = useState(value);
+  const firstStep = useRef(true);
+  useEffect(() => {
+    if (shown === value) {
+      firstStep.current = true;
+      return;
+    }
+    const wait = firstStep.current ? 720 : 170;
+    firstStep.current = false;
+    const t = setTimeout(() => setShown((s) => s + (value > s ? 1 : -1)), wait);
+    return () => clearTimeout(t);
+  }, [value, shown]);
+  return (
+    <div
+      key={shown}
+      className={`steam-prestige-coin ${self ? 'steam-prestige-coin--self' : ''} ${shown !== value || shown > 0 ? 'coin-pop' : ''}`}
+    >
+      {shown}
+    </div>
+  );
+};
 
 interface OpponentPortraitProps {
   player: PlayerState;
@@ -43,6 +70,7 @@ export const OpponentPortrait: React.FC<OpponentPortraitProps> = ({
     <button
       type="button"
       onClick={onInspect}
+      data-fx={`seat:${seatIndex}`}
       className={`steam-portrait-card ${isCurrentTurn ? 'steam-portrait-card--active' : ''}`}
       style={{ '--seat-color': seatColor } as React.CSSProperties}
       title={`点击查看 ${player.name} 的完整牌面`}
@@ -51,7 +79,7 @@ export const OpponentPortrait: React.FC<OpponentPortraitProps> = ({
         <img src={portrait} alt="" className="steam-portrait-frame__img" draggable={false} />
         <div className="steam-portrait-frame__rim" />
         {/* Prestige Gold Coin Top-Right */}
-        <div className="steam-prestige-coin">{pts}</div>
+        <PrestigeCoin value={pts} />
         {/* Token Count Badge Bottom-Right */}
         <div className="steam-token-badge" title="持有筹码数">
           {totalTokens}
@@ -124,13 +152,14 @@ export const ActivePlayerPortrait: React.FC<ActivePlayerPortraitProps> = ({
 
   return (
     <div
+      data-fx={`seat:${seatIndex}`}
       className={`steam-self-portrait ${isMyTurn ? 'steam-self-portrait--active' : ''}`}
       style={{ '--seat-color': seatColor } as React.CSSProperties}
     >
       <div className="steam-portrait-frame steam-portrait-frame--self">
         <img src={portrait} alt="" className="steam-portrait-frame__img" draggable={false} />
         <div className="steam-portrait-frame__rim" />
-        <div className="steam-prestige-coin steam-prestige-coin--self">{pts}</div>
+        <PrestigeCoin value={pts} self />
         {player.nobles.length > 0 && (
           <div className="steam-noble-count-pip" title={`已获 ${player.nobles.length} 位贵族`}>
             ♛{player.nobles.length}
@@ -199,9 +228,10 @@ export const ActivePlayerDock: React.FC<ActivePlayerDockProps> = ({
           const b = bonuses[c];
           const t = player.tokens[c];
           return (
-            <div key={c} className={`steam-gem-slot steam-gem-slot--${c}`}>
+            <div key={c} data-fx={`tray:${c}`} className={`steam-gem-slot steam-gem-slot--${c}`}>
               <span
-                className={`steam-gem-slot__bonus ${b === 0 ? 'steam-gem-slot__zero' : ''}`}
+                key={b}
+                className={`steam-gem-slot__bonus ${b === 0 ? 'steam-gem-slot__zero' : 'slot-pop'}`}
                 title="永久宝石卡折扣"
               >
                 {b > 0 ? b : ''}
@@ -218,7 +248,7 @@ export const ActivePlayerDock: React.FC<ActivePlayerDockProps> = ({
         })}
 
         {/* Gold Wild Slot */}
-        <div className="steam-gem-slot steam-gem-slot--gold">
+        <div data-fx="tray:gold" className="steam-gem-slot steam-gem-slot--gold">
           <div
             className={`steam-gem-slot__chip steam-gem-slot__chip--gold ${player.tokens.gold === 0 ? 'steam-gem-slot__chip--empty' : ''}`}
             title={`黄金百搭 ${player.tokens.gold}`}
@@ -243,6 +273,7 @@ export const ActivePlayerDock: React.FC<ActivePlayerDockProps> = ({
             return (
               <CardView
                 key={card.id}
+                trackFx
                 card={card}
                 canAfford={affordable}
                 compact

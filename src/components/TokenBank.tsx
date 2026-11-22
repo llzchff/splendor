@@ -1,6 +1,13 @@
 import React from 'react';
 import { ART_GEM_CHIP } from '../art/assets';
-import { GEM_COLORS, GEM_LABELS_ZH, GemColor, GemCounts, TokenCounts } from '../engine/types';
+import {
+  GEM_COLORS,
+  GEM_LABELS_ZH,
+  GemColor,
+  GemCounts,
+  TokenColor,
+  TokenCounts,
+} from '../engine/types';
 
 interface TokenBankProps {
   bank: TokenCounts;
@@ -13,11 +20,33 @@ interface TokenBankProps {
   takeHint: string;
 }
 
-/**
- * Steam-style floating 3D stacked poker chips resting directly on the velvet felt
- * (Gold at top, followed by Onyx, Ruby, Emerald, Sapphire, Diamond — exact Steam order).
- */
 const STEAM_GEM_ORDER: readonly GemColor[] = ['black', 'red', 'green', 'blue', 'white'] as const;
+
+/**
+ * Real 3D cylinder chip stack: every chip has an elliptical top face plus a notched
+ * side rim, and chips are physically stacked so their edges form a visible column.
+ */
+export const ChipStack: React.FC<{ color: TokenColor; count: number; maxLayers?: number }> = ({
+  color,
+  count,
+  maxLayers = 5,
+}) => {
+  const layers = Math.max(1, Math.min(count, maxLayers));
+  return (
+    <div className="chip-pile" style={{ '--layers': layers } as React.CSSProperties}>
+      {Array.from({ length: layers }).map((_, i) => (
+        <div
+          key={i}
+          className={`chip3d chip3d--${color}`}
+          style={{ '--i': i } as React.CSSProperties}
+        >
+          <div className="chip3d__edge" />
+          <img className="chip3d__face" src={ART_GEM_CHIP[color]} alt="" draggable={false} />
+        </div>
+      ))}
+    </div>
+  );
+};
 
 export const TokenBank: React.FC<TokenBankProps> = ({
   bank,
@@ -32,34 +61,18 @@ export const TokenBank: React.FC<TokenBankProps> = ({
 
   return (
     <aside className="steam-bank" aria-label="宝石筹码供应堆">
-      {/* Gold Joker Stack at top (Steam order!) */}
       <div
+        data-fx="bank:gold"
         className={`poker-stack poker-stack--gold poker-stack--readonly ${bank.gold === 0 ? 'poker-stack--empty' : ''}`}
         title={`黄金百搭（剩余 ${bank.gold}，预定发展卡时获得）`}
       >
-        <div className="poker-stack__pile">
-          {Array.from({ length: Math.max(1, Math.min(bank.gold, 5)) }).map((_, layerIdx) => {
-            const isTop = layerIdx === Math.max(1, Math.min(bank.gold, 5)) - 1;
-            return (
-              <img
-                key={layerIdx}
-                src={ART_GEM_CHIP.gold}
-                alt=""
-                draggable={false}
-                className={`poker-stack__chip ${isTop ? 'poker-stack__chip--top' : 'poker-stack__chip--under'}`}
-                style={{ transform: `translate(${layerIdx * 0.7}px, ${-layerIdx * 2.2}px)` }}
-              />
-            );
-          })}
-        </div>
+        <ChipStack color="gold" count={bank.gold} />
         <span className="poker-stack__count">{bank.gold}</span>
       </div>
 
-      {/* 5 Colored Gem Stacks */}
       {STEAM_GEM_ORDER.map((color) => {
         const count = bank[color];
         const picked = selectedGems[color];
-        const visibleStack = Math.min(count, 5);
         const canClick =
           !disabled &&
           (picked > 0 ||
@@ -76,6 +89,7 @@ export const TokenBank: React.FC<TokenBankProps> = ({
           <button
             key={color}
             type="button"
+            data-fx={`bank:${color}`}
             disabled={!canClick && picked === 0}
             onClick={() => onSelectGem(color)}
             className={[
@@ -88,28 +102,13 @@ export const TokenBank: React.FC<TokenBankProps> = ({
               .join(' ')}
             title={`${GEM_LABELS_ZH[color]}（剩余 ${count}）`}
           >
-            <div className="poker-stack__pile">
-              {Array.from({ length: Math.max(1, visibleStack) }).map((_, layerIdx) => {
-                const isTop = layerIdx === Math.max(1, visibleStack) - 1;
-                return (
-                  <img
-                    key={layerIdx}
-                    src={ART_GEM_CHIP[color]}
-                    alt=""
-                    draggable={false}
-                    className={`poker-stack__chip ${isTop ? 'poker-stack__chip--top' : 'poker-stack__chip--under'}`}
-                    style={{ transform: `translate(${layerIdx * 0.7}px, ${-layerIdx * 2.2}px)` }}
-                  />
-                );
-              })}
-            </div>
+            <ChipStack color={color} count={count} />
             <span className="poker-stack__count">{count}</span>
             {picked > 0 && <span className="poker-stack__picked-badge">+{picked}</span>}
           </button>
         );
       })}
 
-      {/* Floating Confirm / Clear Action Pill when gems are selected */}
       {totalSelected > 0 && (
         <div className="steam-bank__floating-confirm">
           <button

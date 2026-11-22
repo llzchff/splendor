@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   BookOpen,
   ChevronLeft,
@@ -27,8 +27,9 @@ import {
   TOKEN_COLORS,
   Tier,
 } from '../engine/types';
-import { AnimationLayer, BannerToastEffect, FlyingTokenEffect } from './AnimationLayer';
+import { AnimationLayer, BannerToastEffect } from './AnimationLayer';
 import { CardView } from './CardView';
+import { chipBox, collectRects, dealCard, flipMove, Flight, FxLayer, FxRect, pulse } from './FxLayer';
 import { NobleCityStrip } from './NobleCityStrip';
 import { PendingActionModal } from './PendingActionModal';
 import { ActivePlayerDock, ActivePlayerPortrait, OpponentPortrait } from './PlayerPanel';
@@ -47,14 +48,21 @@ interface GameBoardProps {
 
 const TIER_ROMAN: Record<Tier, string> = { 3: 'III', 2: 'II', 1: 'I' };
 
-const TOKEN_BANK_Y: Record<string, number> = {
-  gold: 16,
-  black: 29,
-  red: 42,
-  green: 55,
-  blue: 68,
-  white: 81,
-};
+function findCardInState(s: GameState, id: string): Card | null {
+  for (const tier of [1, 2, 3] as Tier[]) {
+    const row = s.tiers[tier];
+    for (const c of [...row.baseSlots, ...row.orientSlots]) if (c && c.id === id) return c;
+  }
+  for (const p of s.players) {
+    const r = p.reserved.find((c) => c.id === id);
+    if (r) return r;
+    const o = p.cards.find((c) => c.card.id === id);
+    if (o) return o.card;
+    const g = p.goldSatchels.find((c) => c.id === id);
+    if (g) return g;
+  }
+  return null;
+}
 
 export const GameBoard: React.FC<GameBoardProps> = ({
   state,
@@ -79,10 +87,15 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   const [muted, setMuted] = useState(() => soundEngine.isMuted());
   const [bgmOn, setBgmOn] = useState(() => soundEngine.isBgmEnabled());
 
-  const [flyingTokens, setFlyingTokens] = useState<FlyingTokenEffect[]>([]);
+  const [flights, setFlights] = useState<Flight[]>([]);
   const [banner, setBanner] = useState<BannerToastEffect | null>(null);
   const prevStateRef = useRef<GameState | null>(null);
+  const rectCacheRef = useRef<Map<string, FxRect>>(new Map());
   const fxIdRef = useRef(1);
+  const screenRef = useRef<HTMLDivElement>(null);
+  const removeFlight = useCallback((id: number) => {
+    setFlights((cur) => cur.filter((f) => f.id !== id));
+  }, []);
 
   const activePlayer = state.players[state.currentPlayerIndex];
   const humanCount = useMemo(() => state.players.filter((p) => !p.isAI).length, [state.players]);
@@ -98,59 +111,147 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     return state.currentPlayerIndex;
   }, [state.players, state.currentPlayerIndex, localPlayerId, humanCount]);
 
-  useEffect(() => {
+  /**
+   * Steam-style motion director. Runs after every commit, measures where every tracked
+   * element ([data-fx]) sits now vs. last commit, and when the game state changed it
+   * choreographs: opening deal, card flights to buyers, flip-in refills, chip arcs,
+   * noble visits and landing pulses.
+   */
+  useLayoutEffect(() => {
+    const root = screenRef.current;
+    if (!root) return;
+    const cur = collectRects(root);
+    const prevRects = rectCacheRef.current;
+    rectCacheRef.current = cur;
+
     const prev = prevStateRef.current;
+    if (prev === state) return;
     prevStateRef.current = state;
-    if (!prev) return;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
 
-    const spawned: FlyingTokenEffect[] = [];
-    let delay = 0;
+    // ---- Opening deal: every face-up card flies out of its deck and flips ----
+    if (!prev) {
+      let i = 0;
+      for (const tier of [3, 2, 1] as Tier[]) {
+        const row = state.tiers[tier];
+        for (const c of [...row.baseSlots, ...row.orientSlots]) {
+          if (!c) continue;
+          const rect = cur.get(`card:${c.id}`);
+          if (rect) dealCard(root, c.id, cur.get(`deck:${tier}:${c.isOrient ? 'o' : 'b'}`), rect, 150 + i * 75);
+          i++;
+        }
+      }
+      return;
+    }
 
+    const spawned: Flight[] = [];
+    const resolveTarget = (idx: number, color?: string | null): [string, FxRect] | null => {
+      const keys = idx === dockSeatIndex ? [`tray:${color ?? 'gold'}`, `seat:${idx}`] : [`seat:${idx}`];
+      for (const k of keys) {
+        const r = cur.get(k);
+        if (r) return [k, r];
+      }
+      return null;
+    };
+
+    // ---- Chips arc between the bank and players, flipping in the air ----
+    let chipDelay = 0;
     state.players.forEach((p, idx) => {
       const oldP = prev.players[idx];
       if (!oldP) return;
-      const isDock = idx === dockSeatIndex;
-      const playerX = isDock ? 48 : 8;
-      const playerY = isDock ? 92 : 16 + idx * 18;
-
       for (const color of TOKEN_COLORS) {
         const diff = p.tokens[color] - oldP.tokens[color];
-        if (diff > 0) {
-          for (let k = 0; k < Math.min(diff, 3); k++) {
-            spawned.push({
-              id: fxIdRef.current++,
-              color,
-              fromX: 79,
-              fromY: TOKEN_BANK_Y[color] ?? 48,
-              toX: playerX,
-              toY: playerY,
-              delayMs: delay,
-            });
-            delay += 65;
-          }
-        } else if (diff < 0) {
-          for (let k = 0; k < Math.min(-diff, 3); k++) {
-            spawned.push({
-              id: fxIdRef.current++,
-              color,
-              fromX: playerX,
-              fromY: playerY,
-              toX: 79,
-              toY: TOKEN_BANK_Y[color] ?? 48,
-              delayMs: delay,
-            });
-            delay += 50;
-          }
+        if (diff === 0) continue;
+        const bank = cur.get(`bank:${color}`);
+        const tgt = resolveTarget(idx, color);
+        if (!bank || !tgt) continue;
+        const n = Math.min(Math.abs(diff), 4);
+        for (let k = 0; k < n; k++) {
+          spawned.push({
+            id: fxIdRef.current++,
+            kind: 'chip',
+            color,
+            from: chipBox(diff > 0 ? bank : tgt[1]),
+            to: chipBox(diff > 0 ? tgt[1] : bank),
+            delay: chipDelay,
+          });
+          chipDelay += 85;
         }
+        pulse(root, diff > 0 ? tgt[0] : `bank:${color}`, chipDelay + 560);
       }
+    });
 
-      if (p.nobles.length > oldP.nobles.length) {
-        const newest = p.nobles[p.nobles.length - 1];
+    // ---- Cards that left the table / hand fly to whoever took them ----
+    for (const [key, rect] of prevRects) {
+      if (!key.startsWith('card:') || cur.has(key)) continue;
+      const id = key.slice(5);
+      const card = findCardInState(prev, id);
+      if (!card) continue;
+      state.players.forEach((p, idx) => {
+        const oldP = prev.players[idx];
+        if (!oldP) return;
+        const owned = p.cards.find((o) => o.card.id === id);
+        const bought =
+          (owned && !oldP.cards.some((o) => o.card.id === id)) ||
+          (p.goldSatchels.some((c) => c.id === id) && !oldP.goldSatchels.some((c) => c.id === id));
+        const reservedNow = p.reserved.some((c) => c.id === id) && !oldP.reserved.some((c) => c.id === id);
+        if (!bought && !reservedNow) return;
+        const tgt = bought
+          ? resolveTarget(idx, card.bonus ?? owned?.attachedColor ?? null)
+          : resolveTarget(idx === dockSeatIndex ? -1 : idx);
+        const target = tgt ?? (cur.get(`seat:${idx}`) ? ([`seat:${idx}`, cur.get(`seat:${idx}`)!] as [string, FxRect]) : null);
+        if (!target) return;
+        spawned.push({ id: fxIdRef.current++, kind: 'card', card, from: rect, to: target[1], delay: 100 });
+        pulse(root, target[0], 100 + 760);
+      });
+    }
+
+    // ---- Opponents reserving blind from a deck: a face-down card flies to them ----
+    state.players.forEach((p, idx) => {
+      if (idx === dockSeatIndex) return;
+      const oldP = prev.players[idx];
+      if (!oldP) return;
+      for (const c of p.reserved) {
+        if (oldP.reserved.some((o) => o.id === c.id) || prevRects.has(`card:${c.id}`)) continue;
+        const deck = cur.get(`deck:${c.tier}:${c.isOrient ? 'o' : 'b'}`);
+        const seat = cur.get(`seat:${idx}`);
+        if (!deck || !seat) continue;
+        spawned.push({ id: fxIdRef.current++, kind: 'cardback', tier: c.tier, orient: c.isOrient, from: deck, to: seat, delay: 80 });
+        pulse(root, `seat:${idx}`, 860);
+      }
+    });
+
+    // ---- Cards that moved (board -> my hand) glide; brand-new cards are dealt ----
+    for (const [key, rect] of cur) {
+      if (!key.startsWith('card:')) continue;
+      const el = root.querySelector<HTMLElement>(`[data-fx="${key}"]`);
+      if (!el) continue;
+      const old = prevRects.get(key);
+      if (old) {
+        if (Math.abs(old.x - rect.x) + Math.abs(old.y - rect.y) > 6) flipMove(el, old, rect);
+      } else {
+        const card = findCardInState(state, key.slice(5));
+        if (card) dealCard(root, card.id, cur.get(`deck:${card.tier}:${card.isOrient ? 'o' : 'b'}`), rect, 620);
+      }
+    }
+
+    // ---- Nobles visit: the tile flies onto the player's portrait ----
+    state.players.forEach((p, idx) => {
+      const oldP = prev.players[idx];
+      if (!oldP) return;
+      for (const n of p.nobles) {
+        if (oldP.nobles.some((o) => o.id === n.id)) continue;
+        const from = prevRects.get(`noble:${n.id}`);
+        const seat = cur.get(`seat:${idx}`);
+        if (from && seat) {
+          spawned.push({ id: fxIdRef.current++, kind: 'noble', noble: n, from, to: seat, delay: 900 });
+          pulse(root, `seat:${idx}`, 900 + 950);
+        }
         soundEngine.playNobleOrCity();
         setBanner({
           id: fxIdRef.current++,
-          title: `贵族【${newest.name}】慕名造访！`,
-          subtitle: `${p.name} 获得 +${newest.points} 威望分`,
+          title: `贵族【${n.name}】慕名造访！`,
+          subtitle: `${p.name} 获得 +${n.points} 威望分`,
           kind: 'noble',
         });
       }
@@ -175,20 +276,63 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       });
     }
 
-    if (spawned.length > 0) {
-      setFlyingTokens((cur) => [...cur.slice(-12), ...spawned]);
-      const clearIds = new Set(spawned.map((s) => s.id));
-      setTimeout(() => {
-        setFlyingTokens((cur) => cur.filter((item) => !clearIds.has(item.id)));
-      }, 950);
-    }
-  }, [state, dockSeatIndex]);
+    if (spawned.length > 0) setFlights((curF) => [...curF.slice(-24), ...spawned]);
+  });
 
   useEffect(() => {
     if (!banner) return;
     const t = setTimeout(() => setBanner(null), 2600);
     return () => clearTimeout(t);
   }, [banner]);
+
+  // Gyroscope / pointer parallax: gently tilts the 3D tabletop so it feels physical
+  useEffect(() => {
+    const el = screenRef.current;
+    if (!el) return;
+    const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+    let raf = 0;
+    let tx = 0;
+    let ty = 0;
+    let baseA: number | null = null;
+    let baseB: number | null = null;
+    const apply = () => {
+      raf = 0;
+      el.style.setProperty('--tilt-x', `${tx.toFixed(2)}deg`);
+      el.style.setProperty('--tilt-y', `${ty.toFixed(2)}deg`);
+    };
+    const schedule = () => {
+      if (!raf) raf = requestAnimationFrame(apply);
+    };
+    const onOrient = (e: DeviceOrientationEvent) => {
+      if (e.beta == null || e.gamma == null) return;
+      const landscape = window.innerWidth > window.innerHeight;
+      const a = landscape ? e.beta : e.gamma;
+      const b = landscape ? e.gamma : e.beta;
+      if (baseA === null || baseB === null) {
+        baseA = a;
+        baseB = b;
+      }
+      // Slowly re-center so the board always settles back to neutral
+      baseA += (a - baseA) * 0.02;
+      baseB += (b - baseB) * 0.02;
+      tx = clamp((a - baseA) / 6, -3, 3);
+      ty = clamp((b - baseB) / 8, -2, 2);
+      schedule();
+    };
+    const finePointer = window.matchMedia?.('(pointer: fine)').matches;
+    const onPointer = (e: PointerEvent) => {
+      tx = ((e.clientX / window.innerWidth) - 0.5) * 4;
+      ty = -((e.clientY / window.innerHeight) - 0.5) * 3;
+      schedule();
+    };
+    window.addEventListener('deviceorientation', onOrient);
+    if (finePointer) window.addEventListener('pointermove', onPointer);
+    return () => {
+      window.removeEventListener('deviceorientation', onOrient);
+      window.removeEventListener('pointermove', onPointer);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, []);
 
   const dockPlayer = state.players[dockSeatIndex];
   const isLocalPlayersTurn =
@@ -290,6 +434,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 
   return (
     <div
+      ref={screenRef}
       className="steam-table-screen"
       style={{
         backgroundImage: `radial-gradient(ellipse at 52% 45%, rgba(78, 52, 74, 0.42) 0%, rgba(28, 20, 32, 0.72) 68%, rgba(12, 9, 14, 0.88) 100%), url(${ART_BG.table})`,
@@ -362,6 +507,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                     activePlayer.reserved.length >= 3
                   }
                   onClick={() => setInspectTarget({ kind: 'deck', tier, isOrient: false })}
+                  data-fx={`deck:${tier}:b`}
                   className={`steam-deck-slot steam-deck-slot--t${tier}`}
                   title={`盲抽预定 ${tier} 级牌堆（余 ${row.baseDeck.length} 张）`}
                 >
@@ -377,6 +523,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                   card ? (
                     <CardView
                       key={card.id}
+                      trackFx
                       card={card}
                       canAfford={
                         !(forbidTier3 && card.tier === 3) &&
@@ -416,6 +563,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                       card ? (
                         <CardView
                           key={card.id}
+                          trackFx
                           card={card}
                           canAfford={
                             !(forbidTier3 && card.tier === 3) &&
@@ -457,6 +605,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                         activePlayer.reserved.length >= 3
                       }
                       onClick={() => setInspectTarget({ kind: 'deck', tier, isOrient: true })}
+                      data-fx={`deck:${tier}:o`}
                       className="steam-deck-slot steam-deck-slot--orient"
                       title={`盲抽东方 ${tier} 级牌堆（余 ${row.orientDeck.length} 张）`}
                     >
@@ -573,8 +722,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         )}
       </div>
 
-      {/* Flying Chips & Golden Event Banners */}
-      <AnimationLayer flyingTokens={flyingTokens} banner={banner} />
+      {/* Card flights, chip arcs, noble visits + golden event banners */}
+      <FxLayer flights={flights} onDone={removeFlight} />
+      <AnimationLayer flyingTokens={[]} banner={banner} />
 
       {/* Luxury Zoomed Card / Deck / Opponent Inspector Modal */}
       {inspectTarget && (

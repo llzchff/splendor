@@ -1,5 +1,5 @@
 import React from 'react';
-import { getCardArt } from '../art/assets';
+import { ART_DECK_BACK, getCardArt } from '../art/assets';
 import { Card, GEM_COLORS, GemColor, StrongholdStack } from '../engine/types';
 import { GemIcon, PLAYER_COLORS, StrongholdIcon } from './GemIcon';
 
@@ -31,6 +31,8 @@ interface CardViewProps {
   compact?: boolean;
   zoomed?: boolean;
   highlightMode?: 'none' | 'free' | 'stronghold';
+  /** Register this card with the motion director (board + own hand only) */
+  trackFx?: boolean;
   onClick?: () => void;
 }
 
@@ -44,6 +46,7 @@ export const CardView: React.FC<CardViewProps> = ({
   compact = false,
   zoomed = false,
   highlightMode = 'none',
+  trackFx = false,
   onClick,
 }) => {
   const accent = card.bonus ? BONUS_ACCENT[card.bonus] : '#f59e0b';
@@ -55,6 +58,7 @@ export const CardView: React.FC<CardViewProps> = ({
     <button
       type="button"
       onClick={onClick}
+      data-fx={trackFx ? `card:${card.id}` : undefined}
       className={[
         'splendor-card',
         `splendor-card--t${card.tier}`,
@@ -129,6 +133,14 @@ export const CardView: React.FC<CardViewProps> = ({
           ))
         )}
       </div>
+
+      {/* Card back, revealed only while the card is being dealt face-down */}
+      <img
+        src={ART_DECK_BACK[card.isOrient ? 'orient' : card.tier]}
+        alt=""
+        className="splendor-card__back"
+        draggable={false}
+      />
     </button>
   );
 };

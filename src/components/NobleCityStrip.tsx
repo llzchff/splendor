@@ -80,6 +80,7 @@ export const NobleCityStrip: React.FC<NobleCityStripProps> = ({
           <button
             key={noble.id}
             type="button"
+            data-fx={`noble:${noble.id}`}
             onClick={() => onSelectNoble?.(noble.id)}
             className={`steam-noble-tile ${highlightReserveNoble ? 'steam-noble-tile--selectable' : ''}`}
             title={`${noble.name} · ${noble.title}（+${noble.points} 威望）`}
