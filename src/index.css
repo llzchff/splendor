@@ -2093,3 +2093,416 @@ body,
     animation: none;
   }
 }
+
+/* =====================================================================
+   v5.0 — INTERACTION FLOW MATCHED TO THE RECORDED MATCH
+   portrait drawers · banner buttons · lifted card · ceremony · notices
+   ===================================================================== */
+.splendor-card--ghost {
+  visibility: hidden;
+}
+
+/* Gold-framed capsule sliding out of a portrait */
+.portrait-drawer {
+  position: fixed;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px 0 18px;
+  border-radius: 0 999px 999px 0;
+  background: linear-gradient(180deg, rgba(44, 33, 24, 0.94), rgba(18, 13, 10, 0.96));
+  border: 2px solid #c99a32;
+  border-left: none;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 240, 184, 0.35), inset 0 -6px 10px rgba(0, 0, 0, 0.45);
+  transform-origin: left center;
+  animation: drawerOpen 0.24s cubic-bezier(0.2, 0.9, 0.3, 1.15) both;
+  pointer-events: auto;
+}
+
+@keyframes drawerOpen {
+  from { transform: scaleX(0); opacity: 0.3; }
+  to { transform: scaleX(1); opacity: 1; }
+}
+
+.drawer-item {
+  display: flex;
+  align-items: center;
+  animation: drawerItemIn 0.16s ease-out both;
+  animation-delay: var(--d, 0ms);
+}
+
+@keyframes drawerItemIn {
+  from { opacity: 0; transform: scale(0.6); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.drawer-chip {
+  position: relative;
+  width: var(--s);
+  height: var(--s);
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.drawer-chip:disabled { cursor: default; }
+
+.drawer-chip img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  filter: drop-shadow(0 2px 0 rgba(40, 26, 8, 0.95)) drop-shadow(0 4px 5px rgba(0, 0, 0, 0.8));
+}
+
+.drawer-chip__x {
+  position: absolute;
+  top: -7px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #c2172f;
+  border: 1.5px solid #fff;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 12px;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.7);
+}
+
+.drawer-card {
+  height: calc(var(--s) * 1.35);
+}
+
+.drawer-card .splendor-card {
+  height: 100%;
+  width: auto;
+  animation: none;
+}
+
+.drawer-back {
+  height: calc(var(--s) * 1.35);
+  aspect-ratio: 0.74 / 1;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1.5px solid #e6c068;
+}
+
+/* Steam banner button: gold frame, navy face, pointed ends, script label */
+.ornate-btn {
+  position: relative;
+  height: clamp(34px, 9dvh, 46px);
+  min-width: clamp(120px, 18vw, 180px);
+  padding: 0;
+  border: none;
+  cursor: pointer;
+  background: linear-gradient(180deg, #fff1b5 0%, #d6a63c 45%, #8a5f14 100%);
+  clip-path: polygon(16px 0, calc(100% - 16px) 0, 100% 50%, calc(100% - 16px) 100%, 16px 100%, 0 50%);
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.85));
+  transition: transform 0.12s ease, filter 0.15s ease;
+  animation: ornateIn 0.26s cubic-bezier(0.2, 0.9, 0.3, 1.3) both;
+}
+
+.ornate-btn:active:not(:disabled) { transform: scale(0.95); }
+.ornate-btn:hover:not(:disabled) { filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.85)) brightness(1.1); }
+.ornate-btn:disabled { cursor: not-allowed; filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.85)) grayscale(0.7) brightness(0.7); }
+
+.ornate-btn__face {
+  position: absolute;
+  inset: 2.5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 18px;
+  clip-path: polygon(14px 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 14px 100%, 0 50%);
+  background: linear-gradient(180deg, #3554b8 0%, #1d3483 50%, #12215b 100%);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.25);
+  color: #f5f2ff;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 700;
+  font-size: clamp(15px, 3.8dvh, 20px);
+  letter-spacing: 2px;
+  text-shadow: 0 2px 3px rgba(0, 0, 0, 0.8);
+  white-space: nowrap;
+}
+
+.ornate-btn--sm { min-width: 104px; height: clamp(30px, 8dvh, 38px); }
+.ornate-btn--sm .ornate-btn__face { font-size: clamp(13px, 3.2dvh, 16px); }
+
+@keyframes ornateIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.85); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Centre-bottom action bar (Take / End turn + undo), sitting just above the tray */
+.action-bar {
+  position: fixed;
+  left: calc(50% + clamp(46px, 6vw, 67px));
+  bottom: clamp(60px, 15.5dvh, 86px);
+  transform: translateX(-50%);
+  z-index: 32;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.undo-btn {
+  width: clamp(32px, 8.5dvh, 42px);
+  height: clamp(32px, 8.5dvh, 42px);
+  margin-left: -6px;
+  border-radius: 50%;
+  border: 2.5px solid #f4d27a;
+  background: radial-gradient(circle at 35% 30%, #ff6b6b, #b3121f 60%, #6d0710);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.85);
+  animation: ornateIn 0.26s cubic-bezier(0.2, 0.9, 0.3, 1.3) 0.05s both;
+}
+
+/* Lifted card */
+.lift-catcher {
+  position: fixed;
+  inset: 0;
+  z-index: 31;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.lifted-card {
+  position: fixed;
+  z-index: 32;
+  display: flex;
+  justify-content: center;
+}
+
+.lifted-card > .splendor-card {
+  height: 100%;
+  width: auto;
+  border-width: 3px;
+  animation: none;
+  transform: none !important;
+  box-shadow:
+    0 1px 0 #efe7d4, 0 2px 0 #cfc3a9, 0 3px 0 #a3967d, 0 4px 0 #73684f,
+    0 26px 34px -6px rgba(0, 0, 0, 0.85);
+}
+
+.lifted-card > .splendor-card.splendor-card--affordable {
+  border: 3px solid #36ff63;
+  box-shadow:
+    0 0 14px rgba(54, 255, 99, 0.8),
+    0 1px 0 #efe7d4, 0 3px 0 #a3967d,
+    0 26px 34px -6px rgba(0, 0, 0, 0.85);
+}
+
+.lifted-card .splendor-card__points { font-size: clamp(22px, 6dvh, 34px); }
+.lifted-card .cost-pill {
+  width: clamp(24px, 6.2dvh, 34px);
+  height: clamp(24px, 6.2dvh, 34px);
+  font-size: clamp(13px, 3.6dvh, 19px);
+}
+
+.lifted-card__actions {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.lifted-card__note {
+  font-size: 11px;
+  font-weight: 700;
+  color: #fde68a;
+  background: rgba(10, 8, 14, 0.82);
+  border: 1px solid rgba(242, 207, 114, 0.5);
+  padding: 1px 9px;
+  border-radius: 99px;
+  white-space: nowrap;
+}
+
+.lift-reserve {
+  position: fixed;
+  right: calc(14px + env(safe-area-inset-right, 0px));
+  bottom: 10px;
+  z-index: 32;
+}
+
+/* Navy parchment notice dropping from the top edge */
+.parchment-notice {
+  position: fixed;
+  top: 0;
+  left: calc(50% + clamp(46px, 6vw, 67px));
+  transform: translateX(-50%);
+  z-index: 26;
+  max-width: min(440px, 70vw);
+  padding: 7px 20px 8px;
+  border: 2px solid #c9a24a;
+  border-top: none;
+  border-radius: 0 0 10px 10px;
+  background: linear-gradient(180deg, #1d306e 0%, #101c45 100%);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.7), inset 0 0 0 1px rgba(255, 240, 184, 0.15);
+  color: #f2eeff;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: clamp(12px, 3.3dvh, 15px);
+  text-align: center;
+  line-height: 1.35;
+  pointer-events: none;
+  animation: noticeDrop 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+
+.parchment-notice em {
+  color: #f6d36b;
+  font-style: italic;
+  font-weight: 700;
+}
+
+.parchment-notice--timed {
+  z-index: 27;
+  animation: noticeDropHold 3.4s ease both;
+}
+
+@keyframes noticeDrop {
+  from { transform: translate(-50%, -110%); }
+  to { transform: translate(-50%, 0); }
+}
+
+@keyframes noticeDropHold {
+  0% { transform: translate(-50%, -110%); }
+  10% { transform: translate(-50%, 0); }
+  88% { transform: translate(-50%, 0); }
+  100% { transform: translate(-50%, -110%); }
+}
+
+/* Noble ceremony */
+.ceremony {
+  position: fixed;
+  inset: 0;
+  z-index: 33;
+  background: rgba(4, 3, 6, 0.66);
+  pointer-events: none;
+  animation: ceremonyDim 2.7s ease both;
+}
+
+@keyframes ceremonyDim {
+  0% { opacity: 0; }
+  10% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.ceremony__title {
+  position: absolute;
+  top: 7dvh;
+  width: 100%;
+  text-align: center;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 700;
+  font-size: clamp(26px, 8dvh, 46px);
+  color: #f6d36b;
+  text-shadow: 0 0 18px rgba(246, 211, 107, 0.55), 0 3px 6px #000;
+  animation: ceremonyTitle 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.3) 0.15s both;
+}
+
+.ceremony__sub {
+  position: absolute;
+  bottom: 9dvh;
+  width: 100%;
+  text-align: center;
+  font-size: clamp(12px, 3.4dvh, 15px);
+  color: #efe6d0;
+  text-shadow: 0 2px 4px #000;
+}
+
+@keyframes ceremonyTitle {
+  from { opacity: 0; transform: scale(0.7); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.fx-flight--nobleShow { z-index: 1; }
+
+.fx-flight__noble--show {
+  border: 2.5px solid #36ff63;
+  box-shadow: 0 0 22px rgba(54, 255, 99, 0.75), 0 18px 24px rgba(0, 0, 0, 0.85);
+}
+
+/* Victory splash, then the results panel fades in */
+.victory-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 38;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  animation: splashLife 2s ease both;
+}
+
+@keyframes splashLife {
+  0% { opacity: 0; }
+  12% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.victory-splash__plate {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 34px 12px;
+  border: 3px solid #d9b25a;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #1f3374 0%, #0e1940 100%);
+  box-shadow: 0 0 40px rgba(246, 211, 107, 0.35), 0 16px 34px rgba(0, 0, 0, 0.85);
+  animation: ceremonyTitle 0.55s cubic-bezier(0.2, 0.9, 0.3, 1.3) both;
+}
+
+.victory-splash__plate::after {
+  content: '✦';
+  position: absolute;
+  right: -14px;
+  bottom: -14px;
+  font-size: 30px;
+  color: #fff8d6;
+  text-shadow: 0 0 12px #fff;
+  animation: spin 2.4s linear infinite;
+}
+
+.victory-splash__brand {
+  font-family: var(--font-serif);
+  font-size: clamp(20px, 6dvh, 32px);
+  font-weight: 800;
+  color: #f6d36b;
+  letter-spacing: 4px;
+  text-shadow: 0 2px 4px #000;
+}
+
+.victory-splash__title {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: clamp(18px, 5dvh, 28px);
+  color: #f5f2ff;
+  letter-spacing: 3px;
+}
+
+.victory-backdrop-delayed {
+  animation: victoryFade 0.45s ease 1.9s both;
+}
+
+@keyframes victoryFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}

@@ -75,7 +75,7 @@ export const OpponentPortrait: React.FC<OpponentPortraitProps> = ({
       style={{ '--seat-color': seatColor } as React.CSSProperties}
       title={`点击查看 ${player.name} 的完整牌面`}
     >
-      <div className="steam-portrait-frame">
+      <div className="steam-portrait-frame" data-fx={`frame:${seatIndex}`}>
         <img src={portrait} alt="" className="steam-portrait-frame__img" draggable={false} />
         <div className="steam-portrait-frame__rim" />
         {/* Prestige Gold Coin Top-Right */}
@@ -156,7 +156,7 @@ export const ActivePlayerPortrait: React.FC<ActivePlayerPortraitProps> = ({
       className={`steam-self-portrait ${isMyTurn ? 'steam-self-portrait--active' : ''}`}
       style={{ '--seat-color': seatColor } as React.CSSProperties}
     >
-      <div className="steam-portrait-frame steam-portrait-frame--self">
+      <div className="steam-portrait-frame steam-portrait-frame--self" data-fx={`frame:${seatIndex}`}>
         <img src={portrait} alt="" className="steam-portrait-frame__img" draggable={false} />
         <div className="steam-portrait-frame__rim" />
         <PrestigeCoin value={pts} self />

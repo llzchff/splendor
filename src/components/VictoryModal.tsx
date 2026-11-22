@@ -22,7 +22,7 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({ state, onRematch, on
   const ch = state.challengeResult;
 
   return (
-    <div className="modal-backdrop">
+    <div className="modal-backdrop victory-backdrop-delayed">
       <div className="modal-card victory-modal">
         <div className="victory-crown">
           <Crown size={34} color="#f59e0b" />

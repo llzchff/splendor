@@ -33,6 +33,8 @@ interface CardViewProps {
   highlightMode?: 'none' | 'free' | 'stronghold';
   /** Register this card with the motion director (board + own hand only) */
   trackFx?: boolean;
+  /** Card is currently lifted out of this slot — keep the slot's footprint but hide it */
+  ghost?: boolean;
   onClick?: () => void;
 }
 
@@ -47,6 +49,7 @@ export const CardView: React.FC<CardViewProps> = ({
   zoomed = false,
   highlightMode = 'none',
   trackFx = false,
+  ghost = false,
   onClick,
 }) => {
   const accent = card.bonus ? BONUS_ACCENT[card.bonus] : '#f59e0b';
@@ -68,6 +71,7 @@ export const CardView: React.FC<CardViewProps> = ({
         selected ? 'splendor-card--selected' : '',
         compact ? 'splendor-card--compact' : '',
         zoomed ? 'splendor-card--zoomed' : '',
+        ghost ? 'splendor-card--ghost' : '',
         highlightMode === 'free' ? 'splendor-card--highlight-free' : '',
         highlightMode === 'stronghold' ? 'splendor-card--highlight-sh' : '',
       ]
