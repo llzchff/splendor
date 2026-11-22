@@ -6,69 +6,155 @@ import { Card, GEM_COLORS, PlayerState } from '../engine/types';
 import { CardView } from './CardView';
 import { PLAYER_COLORS, StrongholdIcon } from './GemIcon';
 
-interface OpponentCardProps {
+const PLAYER_PORTRAITS = [
+  './art/noble_4.jpg', // Seat 0: Player (Monarch)
+  './art/noble_1.jpg', // Seat 1: Opponent 1
+  './art/noble_2.jpg', // Seat 2: Opponent 2
+  './art/noble_3.jpg', // Seat 3: Opponent 3
+] as const;
+
+interface OpponentPortraitProps {
   player: PlayerState;
   seatIndex: number;
   isCurrentTurn: boolean;
   strongholdsEnabled: boolean;
   tradingPostsEnabled: boolean;
+  onInspect: () => void;
 }
 
-export const OpponentMiniCard: React.FC<OpponentCardProps> = ({
+/**
+ * Steam-exact gilded portrait medallion on the left marble column for each opponent.
+ */
+export const OpponentPortrait: React.FC<OpponentPortraitProps> = ({
   player,
   seatIndex,
   isCurrentTurn,
   strongholdsEnabled,
   tradingPostsEnabled,
+  onInspect,
 }) => {
   const bonuses = getPlayerBonuses(player);
   const pts = getPlayerPoints(player);
   const totalTokens = getTotalTokens(player.tokens);
-  const color = PLAYER_COLORS[seatIndex % PLAYER_COLORS.length];
+  const seatColor = PLAYER_COLORS[seatIndex % PLAYER_COLORS.length];
+  const portrait = PLAYER_PORTRAITS[seatIndex % PLAYER_PORTRAITS.length];
+
+  return (
+    <button
+      type="button"
+      onClick={onInspect}
+      className={`steam-portrait-card ${isCurrentTurn ? 'steam-portrait-card--active' : ''}`}
+      style={{ '--seat-color': seatColor } as React.CSSProperties}
+      title={`点击查看 ${player.name} 的完整牌面`}
+    >
+      <div className="steam-portrait-frame">
+        <img src={portrait} alt="" className="steam-portrait-frame__img" draggable={false} />
+        <div className="steam-portrait-frame__rim" />
+        {/* Prestige Gold Coin Top-Right */}
+        <div className="steam-prestige-coin">{pts}</div>
+        {/* Token Count Badge Bottom-Right */}
+        <div className="steam-token-badge" title="持有筹码数">
+          {totalTokens}
+        </div>
+        {/* Reserved Mini Card Badge Top-Left */}
+        {player.reserved.length > 0 && (
+          <div className="steam-reserved-pip" title={`预定 ${player.reserved.length} 张`}>
+            {player.reserved.length}
+          </div>
+        )}
+      </div>
+
+      {/* Compact Name + Colored Card/Token Micro-Strip */}
+      <div className="steam-portrait-meta">
+        <span className="steam-portrait-name">
+          {player.name}
+          {player.isAI ? '' : ''}
+        </span>
+        <div className="steam-micro-gems">
+          {GEM_COLORS.map((c) => (
+            <span
+              key={c}
+              className={`micro-gem micro-gem--${c} ${bonuses[c] === 0 && player.tokens[c] === 0 ? 'micro-gem--zero' : ''}`}
+            >
+              {bonuses[c] + player.tokens[c]}
+            </span>
+          ))}
+        </div>
+        {(strongholdsEnabled || (tradingPostsEnabled && player.tradingPosts.length > 0)) && (
+          <div className="steam-portrait-extras">
+            {strongholdsEnabled && (
+              <span className="opp-card__sh">
+                <StrongholdIcon color={seatColor} size={10} />
+                {player.strongholdsRemaining}
+              </span>
+            )}
+            {tradingPostsEnabled && player.tradingPosts.length > 0 && (
+              <span>徽{player.tradingPosts.length}</span>
+            )}
+          </div>
+        )}
+      </div>
+    </button>
+  );
+};
+
+interface ActivePlayerPortraitProps {
+  player: PlayerState;
+  seatIndex: number;
+  isMyTurn: boolean;
+  strongholdsEnabled: boolean;
+  tradingPostsEnabled: boolean;
+  onOpenTradingPosts?: () => void;
+}
+
+/**
+ * Steam-exact grand gilded player portrait anchored at bottom-left of the marble column.
+ */
+export const ActivePlayerPortrait: React.FC<ActivePlayerPortraitProps> = ({
+  player,
+  seatIndex,
+  isMyTurn,
+  strongholdsEnabled,
+  tradingPostsEnabled,
+  onOpenTradingPosts,
+}) => {
+  const pts = getPlayerPoints(player);
+  const seatColor = PLAYER_COLORS[seatIndex % PLAYER_COLORS.length];
+  const portrait = PLAYER_PORTRAITS[seatIndex % PLAYER_PORTRAITS.length];
 
   return (
     <div
-      className={`opp-card ${isCurrentTurn ? 'opp-card--active' : ''}`}
-      style={{ '--seat-color': color } as React.CSSProperties}
+      className={`steam-self-portrait ${isMyTurn ? 'steam-self-portrait--active' : ''}`}
+      style={{ '--seat-color': seatColor } as React.CSSProperties}
     >
-      <div className="opp-card__top">
-        <div className="opp-card__identity">
-          <span className="opp-card__dot" style={{ background: color }} />
-          <span className="opp-card__name">{player.name}</span>
-          {player.isAI && <span className="opp-card__ai-tag">AI</span>}
-        </div>
-        <div className="opp-card__score">
-          <span className="opp-card__pts">{pts}</span>
-          <span className="opp-card__pts-unit">分</span>
-        </div>
-      </div>
-
-      <div className="opp-card__gems">
-        {GEM_COLORS.map((c) => (
-          <div key={c} className="opp-gem-col">
-            <span className={`opp-gem-bonus opp-gem-bonus--${c}`}>{bonuses[c]}</span>
-            <span className="opp-gem-tok">{player.tokens[c]}</span>
+      <div className="steam-portrait-frame steam-portrait-frame--self">
+        <img src={portrait} alt="" className="steam-portrait-frame__img" draggable={false} />
+        <div className="steam-portrait-frame__rim" />
+        <div className="steam-prestige-coin steam-prestige-coin--self">{pts}</div>
+        {player.nobles.length > 0 && (
+          <div className="steam-noble-count-pip" title={`已获 ${player.nobles.length} 位贵族`}>
+            ♛{player.nobles.length}
           </div>
-        ))}
-        <div className="opp-gem-col">
-          <span className="opp-gem-bonus opp-gem-bonus--gold">★</span>
-          <span className="opp-gem-tok">{player.tokens.gold}</span>
-        </div>
+        )}
       </div>
-
-      <div className="opp-card__meta">
-        <span>筹码 {totalTokens}/10</span>
-        <span>预定 {player.reserved.length}/3</span>
-        {player.nobles.length > 0 && <span className="gold-text">贵族 {player.nobles.length}</span>}
-        {player.claimedCity && <span className="gold-text">城: {player.claimedCity.name}</span>}
-        {strongholdsEnabled && (
-          <span className="opp-card__sh">
-            <StrongholdIcon color={color} size={11} /> {player.strongholdsRemaining}
-          </span>
-        )}
-        {tradingPostsEnabled && player.tradingPosts.length > 0 && (
-          <span>徽章 {player.tradingPosts.length}</span>
-        )}
+      <div className="steam-self-caption">
+        <span className="steam-portrait-name">{player.name}</span>
+        <div className="steam-portrait-extras">
+          {player.goldSatchels.length > 0 && (
+            <span className="gold-text">金袋×{player.goldSatchels.length}</span>
+          )}
+          {strongholdsEnabled && (
+            <span className="opp-card__sh">
+              <StrongholdIcon color={seatColor} size={11} />
+              {player.strongholdsRemaining}
+            </span>
+          )}
+          {tradingPostsEnabled && (
+            <button type="button" className="dock-tp-btn" onClick={onOpenTradingPosts}>
+              徽{player.tradingPosts.length}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -76,144 +162,95 @@ export const OpponentMiniCard: React.FC<OpponentCardProps> = ({
 
 interface ActivePlayerDockProps {
   player: PlayerState;
-  seatIndex: number;
   isMyTurn: boolean;
-  strongholdsEnabled: boolean;
-  tradingPostsEnabled: boolean;
   forbidTier3?: boolean;
   onClickReserved: (card: Card) => void;
-  onOpenTradingPosts?: () => void;
 }
 
+/**
+ * Steam-exact curved dark-marble & forged-gold bottom tray:
+ * Circular X/10 token dial + 5 colored jewel-glass slots (bonus count left + mini poker chip right)
+ * + Gold wild slot + Reserved cards fan on the right.
+ */
 export const ActivePlayerDock: React.FC<ActivePlayerDockProps> = ({
   player,
-  seatIndex,
   isMyTurn,
-  strongholdsEnabled,
-  tradingPostsEnabled,
   forbidTier3 = false,
   onClickReserved,
-  onOpenTradingPosts,
 }) => {
   const bonuses = getPlayerBonuses(player);
-  const pts = getPlayerPoints(player);
   const totalTokens = getTotalTokens(player.tokens);
-  const seatColor = PLAYER_COLORS[seatIndex % PLAYER_COLORS.length];
 
   return (
-    <footer
-      className={`player-dock ${isMyTurn ? 'player-dock--active' : ''}`}
-      style={{ '--seat-color': seatColor } as React.CSSProperties}
-    >
-      {/* Left: Gilded Crest & Prestige Shield */}
-      <div className="player-dock__profile">
-        <div className="player-dock__prestige">
-          <span className="player-dock__prestige-val">{pts}</span>
-          <span className="player-dock__prestige-lbl">威望</span>
-        </div>
-        <div className="player-dock__info">
-          <div className="player-dock__name-row">
-            <span className="opp-card__dot" style={{ background: seatColor }} />
-            <strong>{player.name}</strong>
-            {isMyTurn && <span className="turn-pill">你的回合</span>}
-          </div>
-          <div className="player-dock__stats">
-            <span>筹码 {totalTokens}/10</span>
-            <span>矿卡 {player.cards.length}</span>
-            {player.nobles.length > 0 && <span className="gold-text">贵族 {player.nobles.length}</span>}
-            {player.reservedNobles.length > 0 && (
-              <span className="gold-text">定贵族 {player.reservedNobles.length}</span>
-            )}
-            {player.goldSatchels.length > 0 && (
-              <span className="gold-text">金袋 ×{player.goldSatchels.length}</span>
-            )}
-            {strongholdsEnabled && (
-              <span className="opp-card__sh">
-                <StrongholdIcon color={seatColor} size={13} /> 余 {player.strongholdsRemaining}
-              </span>
-            )}
-            {tradingPostsEnabled && (
-              <button type="button" className="dock-tp-btn" onClick={onOpenTradingPosts}>
-                徽章 {player.tradingPosts.length}/5
-              </button>
-            )}
-          </div>
-        </div>
+    <footer className={`steam-bottom-tray ${isMyTurn ? 'steam-bottom-tray--active' : ''}`}>
+      {/* Circular 8/10 Token Limit Medallion (Steam Signature!) */}
+      <div
+        className={`steam-cap-dial ${totalTokens >= 9 ? 'steam-cap-dial--warn' : ''}`}
+        title={`筹码上限 ${totalTokens}/10`}
+      >
+        <span className="steam-cap-dial__cur">{totalTokens}</span>
+        <span className="steam-cap-dial__slash">/</span>
+        <span className="steam-cap-dial__max">10</span>
       </div>
 
-      {/* Center: Physical Stacked Mini Gem-Card Columns + Poker-Chip Token Stacks */}
-      <div className="player-dock__resources">
+      {/* 5 Colored Gem-Glass Slots + Gold Slot */}
+      <div className="steam-tray-slots">
         {GEM_COLORS.map((c) => {
-          const cardCount = bonuses[c];
-          const tokCount = player.tokens[c];
-          const stackLayers = Math.min(cardCount, 4);
-
+          const b = bonuses[c];
+          const t = player.tokens[c];
           return (
-            <div key={c} className={`tableau-col tableau-col--${c}`}>
-              {/* Fanned Mini Card Stack */}
-              <div className="tableau-cards" title={`永久 ${c} 宝石卡加成: +${cardCount}`}>
-                {cardCount > 0 ? (
-                  <div className="mini-card-stack">
-                    {Array.from({ length: stackLayers }).map((_, idx) => (
-                      <div
-                        key={idx}
-                        className={`mini-card-leaf mini-card-leaf--${c}`}
-                        style={{ transform: `translate(${idx * 2}px, ${-idx * 2.5}px)` }}
-                      />
-                    ))}
-                    <span className="mini-card-stack__val">{cardCount}</span>
-                  </div>
-                ) : (
-                  <div className="mini-card-empty">0</div>
-                )}
-              </div>
-
-              {/* Mini Poker Chip Token */}
-              <div
-                className={`tableau-chip ${tokCount === 0 ? 'tableau-chip--empty' : ''}`}
-                title={`持有筹码: ${tokCount}`}
+            <div key={c} className={`steam-gem-slot steam-gem-slot--${c}`}>
+              <span
+                className={`steam-gem-slot__bonus ${b === 0 ? 'steam-gem-slot__zero' : ''}`}
+                title="永久宝石卡折扣"
               >
-                <img src={ART_GEM_CHIP[c]} alt="" className="tableau-chip__img" draggable={false} />
-                <span className="tableau-chip__val">{tokCount}</span>
+                {b > 0 ? b : ''}
+              </span>
+              <div
+                className={`steam-gem-slot__chip ${t === 0 ? 'steam-gem-slot__chip--empty' : ''}`}
+                title={`持有筹码 ${t}`}
+              >
+                <img src={ART_GEM_CHIP[c]} alt="" draggable={false} />
+                <span>{t > 0 ? t : ''}</span>
               </div>
             </div>
           );
         })}
 
-        {/* Gold Joker Column */}
-        <div className="tableau-col tableau-col--gold">
-          <div className="tableau-cards">
-            <div className="mini-card-gold-label">百搭</div>
-          </div>
-          <div className={`tableau-chip ${player.tokens.gold === 0 ? 'tableau-chip--empty' : ''}`}>
-            <img src={ART_GEM_CHIP.gold} alt="" className="tableau-chip__img" draggable={false} />
-            <span className="tableau-chip__val">{player.tokens.gold}</span>
+        {/* Gold Wild Slot */}
+        <div className="steam-gem-slot steam-gem-slot--gold">
+          <div
+            className={`steam-gem-slot__chip steam-gem-slot__chip--gold ${player.tokens.gold === 0 ? 'steam-gem-slot__chip--empty' : ''}`}
+            title={`黄金百搭 ${player.tokens.gold}`}
+          >
+            <img src={ART_GEM_CHIP.gold} alt="" draggable={false} />
+            <span>{player.tokens.gold > 0 ? player.tokens.gold : ''}</span>
           </div>
         </div>
       </div>
 
-      {/* Right: Reserved Cards Hand (up to 3) */}
-      <div className="player-dock__reserved">
-        <div className="player-dock__reserved-label">预定手牌 ({player.reserved.length}/3)</div>
-        <div className="player-dock__reserved-cards">
-          {player.reserved.length === 0 ? (
-            <div className="reserved-empty">点击牌桌或牌堆预定</div>
-          ) : (
-            player.reserved.map((card) => {
-              const affordable =
-                !(forbidTier3 && card.tier === 3) && computePayment(player, card).canAfford;
-              return (
-                <CardView
-                  key={card.id}
-                  card={card}
-                  canAfford={affordable}
-                  compact
-                  onClick={() => onClickReserved(card)}
-                />
-              );
-            })
-          )}
-        </div>
+      {/* Reserved Cards Fan */}
+      <div className="steam-tray-reserved">
+        {player.reserved.length === 0 ? (
+          <div className="steam-reserved-empty" title="点击牌桌或牌堆可预定最多3张卡">
+            <span>预定</span>
+            <small>0/3</small>
+          </div>
+        ) : (
+          player.reserved.map((card) => {
+            const affordable =
+              !(forbidTier3 && card.tier === 3) && computePayment(player, card).canAfford;
+            return (
+              <CardView
+                key={card.id}
+                card={card}
+                canAfford={affordable}
+                compact
+                onClick={() => onClickReserved(card)}
+              />
+            );
+          })
+        )}
       </div>
     </footer>
   );

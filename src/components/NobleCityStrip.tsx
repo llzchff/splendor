@@ -12,6 +12,10 @@ interface NobleCityStripProps {
   onSelectNoble?: (nobleId: string) => void;
 }
 
+/**
+ * Steam-exact far-right vertical column of floating Noble portrait tiles (or European City plaques)
+ * sitting directly on the velvet felt with clean rounded-square bonus pips and bold corner points.
+ */
 export const NobleCityStrip: React.FC<NobleCityStripProps> = ({
   citiesMode,
   nobles,
@@ -24,87 +28,87 @@ export const NobleCityStrip: React.FC<NobleCityStripProps> = ({
 
   if (citiesMode) {
     return (
-      <div className="noble-strip">
-        <div className="noble-strip__label">欧洲名城 ({cities.length})</div>
-        <div className="noble-strip__items noble-strip__items--cities">
-          {cities.map((city) => {
-            const reqs = GEM_COLORS.filter((c) => city.requirement.bonuses[c] > 0);
-            return (
-              <div key={city.id} className="city-plaque" title={`${city.name} · ${city.subtitle}`}>
-                <img src={getCityArt(city)} alt="" className="city-plaque__art" draggable={false} />
-                <div className="city-plaque__scrim" />
-                <div className="city-plaque__content">
-                  <div className="city-plaque__top">
-                    <span className="city-plaque__pts">{city.requirement.minPoints}分</span>
-                    <span className="city-plaque__name">{city.name}</span>
-                  </div>
-                  <div className="city-plaque__reqs">
-                    {reqs.map((c) => {
-                      const have = bonuses[c];
-                      const need = city.requirement.bonuses[c];
-                      return (
-                        <span
-                          key={c}
-                          className={`mini-req mini-req--${c} ${have >= need ? 'mini-req--met' : ''}`}
-                        >
-                          {need}
-                        </span>
-                      );
-                    })}
-                    {city.requirement.anyColorCount && (
-                      <span className="mini-req mini-req--any">
-                        {city.requirement.anyColorDistinct && city.requirement.anyColorDistinct > 1
-                          ? `${city.requirement.anyColorDistinct}×${city.requirement.anyColorCount}同色`
-                          : `${city.requirement.anyColorCount}同色`}
+      <aside className="steam-nobles-col steam-nobles-col--cities" aria-label="名城目标">
+        {cities.map((city) => {
+          const reqs = GEM_COLORS.filter((c) => city.requirement.bonuses[c] > 0);
+          return (
+            <div
+              key={city.id}
+              className="steam-city-tile"
+              title={`${city.name} · ${city.subtitle}（需 ${city.requirement.minPoints} 分）`}
+            >
+              <img src={getCityArt(city)} alt="" className="steam-city-tile__art" draggable={false} />
+              <div className="steam-city-tile__scrim" />
+              <div className="steam-city-tile__body">
+                <div className="steam-city-tile__head">
+                  <span className="steam-city-tile__pts">{city.requirement.minPoints}</span>
+                  <span className="steam-city-tile__name">{city.name}</span>
+                </div>
+                <div className="steam-city-tile__reqs">
+                  {reqs.map((c) => {
+                    const met = bonuses[c] >= city.requirement.bonuses[c];
+                    return (
+                      <span
+                        key={c}
+                        className={`steam-req-pip steam-req-pip--${c} ${met ? 'steam-req-pip--met' : ''}`}
+                      >
+                        {city.requirement.bonuses[c]}
                       </span>
-                    )}
-                  </div>
+                    );
+                  })}
+                  {city.requirement.anyColorCount && (
+                    <span className="steam-req-pip steam-req-pip--any">
+                      {city.requirement.anyColorDistinct && city.requirement.anyColorDistinct > 1
+                        ? `${city.requirement.anyColorDistinct}×${city.requirement.anyColorCount}`
+                        : `${city.requirement.anyColorCount}同`}
+                    </span>
+                  )}
                 </div>
               </div>
-            );
-          })}
-        </div>
-      </div>
+            </div>
+          );
+        })}
+      </aside>
     );
   }
 
   return (
-    <div className="noble-strip">
-      <div className="noble-strip__label">文艺复兴贵族 ({nobles.length})</div>
-      <div className="noble-strip__items">
-        {nobles.map((noble) => {
-          const reqs = GEM_COLORS.filter((c) => noble.requirements[c] > 0);
-          return (
-            <button
-              key={noble.id}
-              type="button"
-              onClick={() => onSelectNoble?.(noble.id)}
-              className={`noble-plaque ${highlightReserveNoble ? 'noble-plaque--selectable' : ''}`}
-              title={`${noble.name} · ${noble.title}（+${noble.points}分）`}
-            >
-              <img src={getNobleArt(noble)} alt="" className="noble-plaque__art" draggable={false} />
-              {/* Classic Splendor Left Frosted Requirement Strip */}
-              <div className="noble-plaque__strip">
-                <span className="noble-plaque__pts">{noble.points}</span>
-                <div className="noble-plaque__reqs">
-                  {reqs.map((c) => {
-                    const met = bonuses[c] >= noble.requirements[c];
-                    return (
-                      <span
-                        key={c}
-                        className={`mini-req mini-req--${c} ${met ? 'mini-req--met' : ''}`}
-                      >
-                        {noble.requirements[c]}
-                      </span>
-                    );
-                  })}
-                </div>
-              </div>
-              <div className="noble-plaque__caption">{noble.name.slice(0, 4)}</div>
-            </button>
-          );
-        })}
-      </div>
-    </div>
+    <aside className="steam-nobles-col" aria-label="贵族板块">
+      {nobles.map((noble) => {
+        const reqs = GEM_COLORS.filter((c) => noble.requirements[c] > 0);
+        return (
+          <button
+            key={noble.id}
+            type="button"
+            onClick={() => onSelectNoble?.(noble.id)}
+            className={`steam-noble-tile ${highlightReserveNoble ? 'steam-noble-tile--selectable' : ''}`}
+            title={`${noble.name} · ${noble.title}（+${noble.points} 威望）`}
+          >
+            <img
+              src={getNobleArt(noble)}
+              alt=""
+              className="steam-noble-tile__art"
+              draggable={false}
+            />
+            {/* Steam-Exact Left Requirement Column */}
+            <div className="steam-noble-tile__reqs">
+              {reqs.map((c) => {
+                const met = bonuses[c] >= noble.requirements[c];
+                return (
+                  <span
+                    key={c}
+                    className={`steam-req-pip steam-req-pip--${c} ${met ? 'steam-req-pip--met' : ''}`}
+                  >
+                    {noble.requirements[c]}
+                  </span>
+                );
+              })}
+            </div>
+            {/* Steam-Exact Bold Gold-White Points Bottom-Right */}
+            <span className="steam-noble-tile__pts">{noble.points}</span>
+          </button>
+        );
+      })}
+    </aside>
   );
 };

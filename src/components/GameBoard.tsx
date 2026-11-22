@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   BookOpen,
+  ChevronLeft,
+  ChevronRight,
   Crown,
   Home,
   Music,
@@ -11,7 +13,8 @@ import {
 } from 'lucide-react';
 import { ART_BG, ART_DECK_BACK } from '../art/assets';
 import { soundEngine } from '../audio/sound';
-import { computePayment, emptyGemCounts, getPlayerBonuses } from '../engine/payment';
+import { computePayment, emptyGemCounts, getPlayerBonuses, getTotalTokens } from '../engine/payment';
+import { getPlayerPoints } from '../engine/rules';
 import {
   Card,
   GEM_COLORS,
@@ -20,6 +23,7 @@ import {
   GameState,
   GemColor,
   GemCounts,
+  PlayerState,
   TOKEN_COLORS,
   Tier,
 } from '../engine/types';
@@ -27,7 +31,7 @@ import { AnimationLayer, BannerToastEffect, FlyingTokenEffect } from './Animatio
 import { CardView } from './CardView';
 import { NobleCityStrip } from './NobleCityStrip';
 import { PendingActionModal } from './PendingActionModal';
-import { ActivePlayerDock, OpponentMiniCard } from './PlayerPanel';
+import { ActivePlayerDock, ActivePlayerPortrait, OpponentPortrait } from './PlayerPanel';
 import { TokenBank } from './TokenBank';
 import { TradingPostDrawer } from './TradingPostDrawer';
 
@@ -44,12 +48,12 @@ interface GameBoardProps {
 const TIER_ROMAN: Record<Tier, string> = { 3: 'III', 2: 'II', 1: 'I' };
 
 const TOKEN_BANK_Y: Record<string, number> = {
-  white: 20,
-  blue: 31,
-  green: 42,
-  red: 53,
-  black: 64,
-  gold: 75,
+  gold: 16,
+  black: 29,
+  red: 42,
+  green: 55,
+  blue: 68,
+  white: 81,
 };
 
 export const GameBoard: React.FC<GameBoardProps> = ({
@@ -66,14 +70,15 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     | { kind: 'board'; card: Card }
     | { kind: 'reserved'; card: Card }
     | { kind: 'deck'; tier: Tier; isOrient: boolean }
+    | { kind: 'opponent'; player: PlayerState }
     | null
   >(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [showLog, setShowLog] = useState(false);
   const [showTradingPosts, setShowTradingPosts] = useState(false);
   const [muted, setMuted] = useState(() => soundEngine.isMuted());
   const [bgmOn, setBgmOn] = useState(() => soundEngine.isBgmEnabled());
 
-  // Flying chip & golden banner effects
   const [flyingTokens, setFlyingTokens] = useState<FlyingTokenEffect[]>([]);
   const [banner, setBanner] = useState<BannerToastEffect | null>(null);
   const prevStateRef = useRef<GameState | null>(null);
@@ -93,7 +98,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     return state.currentPlayerIndex;
   }, [state.players, state.currentPlayerIndex, localPlayerId, humanCount]);
 
-  // Diff previous and next state to trigger flying poker-chip arcs & noble/final banners!
   useEffect(() => {
     const prev = prevStateRef.current;
     prevStateRef.current = state;
@@ -106,19 +110,18 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       const oldP = prev.players[idx];
       if (!oldP) return;
       const isDock = idx === dockSeatIndex;
-      const playerX = isDock ? 48 : 10;
-      const playerY = isDock ? 90 : 52 + idx * 9;
+      const playerX = isDock ? 48 : 8;
+      const playerY = isDock ? 92 : 16 + idx * 18;
 
       for (const color of TOKEN_COLORS) {
         const diff = p.tokens[color] - oldP.tokens[color];
         if (diff > 0) {
-          // Bank -> Player
           for (let k = 0; k < Math.min(diff, 3); k++) {
             spawned.push({
               id: fxIdRef.current++,
               color,
-              fromX: 93,
-              fromY: TOKEN_BANK_Y[color] ?? 45,
+              fromX: 79,
+              fromY: TOKEN_BANK_Y[color] ?? 48,
               toX: playerX,
               toY: playerY,
               delayMs: delay,
@@ -126,15 +129,14 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             delay += 65;
           }
         } else if (diff < 0) {
-          // Player -> Bank
           for (let k = 0; k < Math.min(-diff, 3); k++) {
             spawned.push({
               id: fxIdRef.current++,
               color,
               fromX: playerX,
               fromY: playerY,
-              toX: 93,
-              toY: TOKEN_BANK_Y[color] ?? 45,
+              toX: 79,
+              toY: TOKEN_BANK_Y[color] ?? 48,
               delayMs: delay,
             });
             delay += 50;
@@ -142,7 +144,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         }
       }
 
-      // Check noble arrival
       if (p.nobles.length > oldP.nobles.length) {
         const newest = p.nobles[p.nobles.length - 1];
         soundEngine.playNobleOrCity();
@@ -154,7 +155,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         });
       }
 
-      // Check city claim
       if (p.claimedCity && !oldP.claimedCity) {
         soundEngine.playNobleOrCity();
         setBanner({
@@ -260,12 +260,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     return entries.length === required && entries.every((c) => selectedGems[c] === 1);
   }, [selectedGems, state.bank]);
 
-  const takeHint = useMemo(() => {
-    const avail = GEM_COLORS.filter((c) => state.bank[c] > 0).length;
-    if (avail === 0) return '库空';
-    return '选3异色 或 双击同色';
-  }, [state.bank]);
-
   const handleConfirmTake = () => {
     if (!canInteractMain || !canConfirmTake) return;
     soundEngine.playGemTake();
@@ -296,110 +290,69 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 
   return (
     <div
-      className="game-screen"
+      className="steam-table-screen"
       style={{
-        backgroundImage: `linear-gradient(180deg, rgba(8,10,16,0.45), rgba(8,10,16,0.58)), url(${ART_BG.table})`,
+        backgroundImage: `radial-gradient(ellipse at 52% 45%, rgba(78, 52, 74, 0.42) 0%, rgba(28, 20, 32, 0.72) 68%, rgba(12, 9, 14, 0.88) 100%), url(${ART_BG.table})`,
       }}
     >
-      {/* Top Renaissance Gilded HUD Bar */}
-      <header className="top-bar">
-        <div className="top-bar__left">
-          <button type="button" className="icon-btn" onClick={onExit} title="返回主菜单">
-            <Home size={15} />
-            <span>大厅</span>
-          </button>
-          <div className="round-pill">
-            第 <strong>{state.round}</strong> 轮
-            {state.config.challenge?.maxTurns && (
-              <span> / 限 {state.config.challenge.maxTurns}</span>
-            )}
-          </div>
-          {state.finalRoundTriggered && <span className="final-round-pill">终局回合</span>}
-          {roomCode && <span className="room-code-pill">房间 {roomCode}</span>}
+      {/* Left Sculpted Marble Column: Opponent Portraits (Top) + Self Portrait (Bottom) */}
+      <aside className="steam-marble-rail">
+        <div className="steam-opponents-stack">
+          {opponents.map(({ player, seatIndex }) => (
+            <OpponentPortrait
+              key={player.id}
+              player={player}
+              seatIndex={seatIndex}
+              isCurrentTurn={seatIndex === state.currentPlayerIndex}
+              strongholdsEnabled={state.config.expansions.strongholds}
+              tradingPostsEnabled={state.config.expansions.tradingPosts}
+              onInspect={() => {
+                soundEngine.playGemSelect();
+                setInspectTarget({ kind: 'opponent', player });
+              }}
+            />
+          ))}
         </div>
 
-        <div className="top-bar__center">
-          {aiThinking ? (
-            <span className="status-banner status-banner--ai">
-              <Sparkles size={14} className="spin-slow" />
-              {activePlayer.name} 正在思索对策…
+        <ActivePlayerPortrait
+          player={dockPlayer}
+          seatIndex={dockSeatIndex}
+          isMyTurn={isLocalPlayersTurn}
+          strongholdsEnabled={state.config.expansions.strongholds}
+          tradingPostsEnabled={state.config.expansions.tradingPosts}
+          onOpenTradingPosts={() => setShowTradingPosts(true)}
+        />
+      </aside>
+
+      {/* Main Velvet Tabletop Playfield: 3D Slanted Decks + Portrait Cards + Floating Poker Chips + Vertical Nobles */}
+      <main
+        className={`steam-playfield ${state.config.expansions.orient ? 'steam-playfield--orient' : ''}`}
+      >
+        {/* Subtle floating round / AI thinking whisper (zero vertical height consumed!) */}
+        <div className="steam-whisper-bar">
+          <span className="steam-whisper-pill">
+            R{state.round}
+            {state.config.challenge?.maxTurns ? `/${state.config.challenge.maxTurns}` : ''}
+          </span>
+          {roomCode && <span className="steam-whisper-pill steam-whisper-pill--gold">房 {roomCode}</span>}
+          {state.finalRoundTriggered && (
+            <span className="steam-whisper-pill steam-whisper-pill--final">终局回合</span>
+          )}
+          {aiThinking && (
+            <span className="steam-whisper-pill steam-whisper-pill--ai">
+              <Sparkles size={11} className="spin-slow" />
+              {activePlayer.name} 思考中…
             </span>
-          ) : isLocalPlayersTurn ? (
-            <span className="status-banner status-banner--you">
-              轮到 <strong>{activePlayer.name}</strong>：拿取宝石 / 购买发展卡 / 预定卡牌
-            </span>
-          ) : (
-            <span className="status-banner">等待 {activePlayer.name} 行动…</span>
           )}
         </div>
 
-        <div className="top-bar__right">
-          {state.config.expansions.tradingPosts && (
-            <button
-              type="button"
-              className="icon-btn icon-btn--gold"
-              onClick={() => setShowTradingPosts(true)}
-            >
-              <Crown size={14} />
-              <span>贸易站</span>
-            </button>
-          )}
-          <button type="button" className="icon-btn" onClick={() => setShowLog((v) => !v)}>
-            <ScrollText size={14} />
-            <span>战报</span>
-          </button>
-          <button type="button" className="icon-btn" onClick={onOpenRules}>
-            <BookOpen size={14} />
-            <span>规则</span>
-          </button>
-          <button
-            type="button"
-            className={`icon-btn ${bgmOn && !muted ? 'icon-btn--gold' : ''}`}
-            onClick={toggleBgm}
-            title="古典音乐开关"
-          >
-            <Music size={14} />
-          </button>
-          <button type="button" className="icon-btn" onClick={toggleMute} title="全部声音开关">
-            {muted ? <VolumeX size={14} /> : <Volume2 size={14} />}
-          </button>
-        </div>
-      </header>
-
-      {/* Main Steam-Inspired 3-Column Landscape Table */}
-      <main className="table-layout">
-        {/* LEFT RAIL: Painted Noble Portrait Plaques / Cities + Opponents */}
-        <aside className="left-rail">
-          <NobleCityStrip
-            citiesMode={state.config.expansions.cities}
-            nobles={state.nobles}
-            cities={state.cities}
-            activePlayer={dockPlayer}
-          />
-          <div className="opponents-list">
-            {opponents.map(({ player, seatIndex }) => (
-              <OpponentMiniCard
-                key={player.id}
-                player={player}
-                seatIndex={seatIndex}
-                isCurrentTurn={seatIndex === state.currentPlayerIndex}
-                strongholdsEnabled={state.config.expansions.strongholds}
-                tradingPostsEnabled={state.config.expansions.tradingPosts}
-              />
-            ))}
-          </div>
-        </aside>
-
-        {/* CENTER TABLE: 3 Tiers (III, II, I) x (3D Leather Deck + 4 Base Cards [+ 2 Orient Cards]) */}
-        <section
-          className={`card-matrix ${state.config.expansions.orient ? 'card-matrix--orient' : ''}`}
-          aria-label="发展卡牌桌"
-        >
+        {/* Center Cards Matrix (3 Rows: III, II, I) */}
+        <section className="steam-cards-stage" aria-label="发展卡牌桌">
           {([3, 2, 1] as Tier[]).map((tier) => {
             const row = state.tiers[tier];
             return (
-              <div key={tier} className="tier-row">
-                {/* 3D Embossed Leather Base Deck Back */}
+              <div key={tier} className="steam-tier-row">
+                {/* Steam-Exact 3D Slanted Deck Pile in Recessed Gold Slot */}
                 <button
                   type="button"
                   disabled={
@@ -409,17 +362,17 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                     activePlayer.reserved.length >= 3
                   }
                   onClick={() => setInspectTarget({ kind: 'deck', tier, isOrient: false })}
-                  className={`deck-back deck-back--t${tier}`}
+                  className={`steam-deck-slot steam-deck-slot--t${tier}`}
                   title={`盲抽预定 ${tier} 级牌堆（余 ${row.baseDeck.length} 张）`}
                 >
-                  <img src={ART_DECK_BACK[tier]} alt="" className="deck-back__art" draggable={false} />
-                  <div className="deck-back__overlay">
-                    <span className="deck-back__roman">{TIER_ROMAN[tier]}</span>
-                    <span className="deck-back__count">{row.baseDeck.length}</span>
+                  <div className="steam-deck-3d">
+                    <img src={ART_DECK_BACK[tier]} alt="" draggable={false} />
+                    <span className="steam-deck-3d__roman">{TIER_ROMAN[tier]}</span>
+                    <span className="steam-deck-3d__cnt">{row.baseDeck.length}</span>
                   </div>
                 </button>
 
-                {/* 4 Base Face-up Painted Cards */}
+                {/* 4 Portrait-Proportioned Base Cards */}
                 {row.baseSlots.map((card, idx) =>
                   card ? (
                     <CardView
@@ -455,7 +408,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                   )
                 )}
 
-                {/* Orient Expansion: 2 Face-up Slots + Crimson Orient Deck */}
+                {/* Orient Expansion: 2 Crimson-Gold Cards + Slanted Orient Deck */}
                 {state.config.expansions.orient && (
                   <>
                     <div className="tier-divider" />
@@ -492,10 +445,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                           }}
                         />
                       ) : (
-                        <div
-                          key={`empty-o-${tier}-${idx}`}
-                          className="card-slot-empty card-slot-empty--orient"
-                        />
+                        <div key={`empty-o-${tier}-${idx}`} className="card-slot-empty" />
                       )
                     )}
                     <button
@@ -507,18 +457,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                         activePlayer.reserved.length >= 3
                       }
                       onClick={() => setInspectTarget({ kind: 'deck', tier, isOrient: true })}
-                      className="deck-back deck-back--orient"
+                      className="steam-deck-slot steam-deck-slot--orient"
                       title={`盲抽东方 ${tier} 级牌堆（余 ${row.orientDeck.length} 张）`}
                     >
-                      <img
-                        src={ART_DECK_BACK.orient}
-                        alt=""
-                        className="deck-back__art"
-                        draggable={false}
-                      />
-                      <div className="deck-back__overlay">
-                        <span className="deck-back__roman">东{TIER_ROMAN[tier]}</span>
-                        <span className="deck-back__count">{row.orientDeck.length}</span>
+                      <div className="steam-deck-3d">
+                        <img src={ART_DECK_BACK.orient} alt="" draggable={false} />
+                        <span className="steam-deck-3d__roman">东{TIER_ROMAN[tier]}</span>
+                        <span className="steam-deck-3d__cnt">{row.orientDeck.length}</span>
                       </div>
                     </button>
                   </>
@@ -528,7 +473,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           })}
         </section>
 
-        {/* RIGHT COLUMN: 3D Stacked Poker-Chip Gem Supply */}
+        {/* Column 4: Floating 3D Stacked Poker-Chip Bank Directly on Velvet */}
         <TokenBank
           bank={state.bank}
           selectedGems={selectedGems}
@@ -537,36 +482,141 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           onConfirmTake={handleConfirmTake}
           onClearSelection={() => setSelectedGems(emptyGemCounts())}
           canConfirmTake={canConfirmTake}
-          takeHint={takeHint}
+          takeHint=""
+        />
+
+        {/* Column 5 (Far Right): Steam-Exact Vertical Column of Square Noble Portraits / Cities */}
+        <NobleCityStrip
+          citiesMode={state.config.expansions.cities}
+          nobles={state.nobles}
+          cities={state.cities}
+          activePlayer={dockPlayer}
+        />
+
+        {/* Bottom Sculpted Marble & Gold Player Resource Tray */}
+        <ActivePlayerDock
+          player={dockPlayer}
+          isMyTurn={isLocalPlayersTurn}
+          forbidTier3={forbidTier3}
+          onClickReserved={(card) => {
+            soundEngine.playGemSelect();
+            setInspectTarget({ kind: 'reserved', card });
+          }}
         />
       </main>
 
-      {/* BOTTOM DOCK: Physical Stacked Mini Cards + Poker Chips + Reserved Hand */}
-      <ActivePlayerDock
-        player={dockPlayer}
-        seatIndex={dockSeatIndex}
-        isMyTurn={isLocalPlayersTurn}
-        strongholdsEnabled={state.config.expansions.strongholds}
-        tradingPostsEnabled={state.config.expansions.tradingPosts}
-        forbidTier3={forbidTier3}
-        onClickReserved={(card) => {
-          soundEngine.playGemSelect();
-          setInspectTarget({ kind: 'reserved', card });
-        }}
-        onOpenTradingPosts={() => setShowTradingPosts(true)}
-      />
+      {/* Steam-Exact Top-Right Navy-Gold Corner Tab & Slide-out Drawer */}
+      <div className={`steam-corner-menu ${drawerOpen ? 'steam-corner-menu--open' : ''}`}>
+        <button
+          type="button"
+          className="steam-corner-tab"
+          onClick={() => {
+            soundEngine.playGemSelect();
+            setDrawerOpen((v) => !v);
+          }}
+          title="菜单与设置"
+        >
+          {drawerOpen ? <ChevronRight size={17} /> : <ChevronLeft size={17} />}
+        </button>
+
+        {drawerOpen && (
+          <div className="steam-corner-drawer">
+            <button
+              type="button"
+              className="steam-drawer-btn"
+              onClick={() => {
+                setDrawerOpen(false);
+                onExit();
+              }}
+            >
+              <Home size={14} /> 返回大厅
+            </button>
+            {state.config.expansions.tradingPosts && (
+              <button
+                type="button"
+                className="steam-drawer-btn steam-drawer-btn--gold"
+                onClick={() => {
+                  setDrawerOpen(false);
+                  setShowTradingPosts(true);
+                }}
+              >
+                <Crown size={14} /> 贸易站面板
+              </button>
+            )}
+            <button
+              type="button"
+              className="steam-drawer-btn"
+              onClick={() => {
+                setDrawerOpen(false);
+                setShowLog(true);
+              }}
+            >
+              <ScrollText size={14} /> 对局战报
+            </button>
+            <button
+              type="button"
+              className="steam-drawer-btn"
+              onClick={() => {
+                setDrawerOpen(false);
+                onOpenRules();
+              }}
+            >
+              <BookOpen size={14} /> 规则速查
+            </button>
+            <button type="button" className="steam-drawer-btn" onClick={toggleBgm}>
+              <Music size={14} /> 音乐：{bgmOn && !muted ? '开' : '关'}
+            </button>
+            <button type="button" className="steam-drawer-btn" onClick={toggleMute}>
+              {muted ? <VolumeX size={14} /> : <Volume2 size={14} />} 音效：{muted ? '静音' : '开'}
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* Flying Chips & Golden Event Banners */}
       <AnimationLayer flyingTokens={flyingTokens} banner={banner} />
 
-      {/* Steam-Style Luxury Card Zoom & Action Popover */}
+      {/* Luxury Zoomed Card / Deck / Opponent Inspector Modal */}
       {inspectTarget && (
         <div
           className="modal-backdrop modal-backdrop--subtle"
           onClick={() => setInspectTarget(null)}
         >
           <div className="action-sheet action-sheet--luxury" onClick={(e) => e.stopPropagation()}>
-            {inspectTarget.kind === 'deck' ? (
+            {inspectTarget.kind === 'opponent' ? (
+              (() => {
+                const opp = inspectTarget.player;
+                const ob = getPlayerBonuses(opp);
+                return (
+                  <div>
+                    <h4>
+                      {opp.name} · {getPlayerPoints(opp)} 威望分
+                    </h4>
+                    <p className="action-sheet__desc">
+                      持有筹码 {getTotalTokens(opp.tokens)}/10 · 已购发展卡 {opp.cards.length} 张 ·
+                      预定卡 {opp.reserved.length}/3 · 贵族 {opp.nobles.length} 位
+                    </p>
+                    <div className="cost-breakdown">
+                      {GEM_COLORS.map((c) => (
+                        <span key={c} className="cost-check cost-check--ok">
+                          {GEM_LABELS_ZH[c]}：卡+{ob[c]} / 筹{opp.tokens[c]}
+                        </span>
+                      ))}
+                      <span className="cost-check cost-check--ok">黄金：{opp.tokens.gold}</span>
+                    </div>
+                    <div className="action-sheet__btns">
+                      <button
+                        type="button"
+                        className="btn btn--gold"
+                        onClick={() => setInspectTarget(null)}
+                      >
+                        关闭
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()
+            ) : inspectTarget.kind === 'deck' ? (
               <>
                 <h4>
                   盲抽预定 {inspectTarget.isOrient ? '东方 ' : ''}
@@ -656,7 +706,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                           `永久提供 +1 ${card.bonus ? GEM_LABELS_ZH[card.bonus] : ''} 宝石折扣，助力后续购卡与贵族造访。`}
                       </p>
 
-                      {/* Detailed Cost Breakdown */}
                       {card.ability !== 'discard_bonuses' && (
                         <div className="cost-breakdown">
                           {GEM_COLORS.filter((c) => card.cost[c] > 0).map((c) => {

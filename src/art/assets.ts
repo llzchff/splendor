@@ -78,30 +78,34 @@ export function getCardArt(card: Card): string {
   }
 
   const cIdx = card.bonus ? COLOR_IDX[card.bonus] ?? 0 : 0;
+  const seqNum = parseInt(card.id.split('_').pop() ?? '1', 10) || 1;
   const h = hashId(card.id);
 
   if (card.tier === 1) {
-    // Primarily match color mood for Tier 1 mines, with subtle variety
-    return T1_POOL[(cIdx + (h % 2 === 0 ? 0 : 0)) % T1_POOL.length];
+    // Match gem color mood for Tier 1 mines
+    return T1_POOL[cIdx % T1_POOL.length];
   }
   if (card.tier === 2) {
-    return T2_POOL[(cIdx + h) % T2_POOL.length];
+    return T2_POOL[(cIdx * 2 + seqNum - 1) % T2_POOL.length];
   }
-  return T3_POOL[(cIdx + h) % T3_POOL.length];
+  return T3_POOL[(cIdx * 3 + seqNum - 1 + (h % 2)) % T3_POOL.length];
 }
 
-const NOBLE_PORTRAITS = [
-  './art/noble_1.jpg',
-  './art/noble_2.jpg',
-  './art/noble_3.jpg',
-  './art/noble_4.jpg',
-  './art/noble_5.jpg',
-  './art/noble_6.jpg',
-] as const;
+const NOBLE_PORTRAIT_BY_ID: Record<string, string> = {
+  noble_1: './art/noble_1.jpg', // 伊莎贝拉一世（女王）
+  noble_2: './art/noble_2.jpg', // 洛伦佐·美第奇（大公）
+  noble_3: './art/noble_3.jpg', // 玛丽·斯图亚特（女王）
+  noble_4: './art/noble_4.jpg', // 查理五世（皇帝）
+  noble_5: './art/noble_6.jpg', // 安妮·布列塔尼（王后）
+  noble_6: './art/noble_2.jpg', // 弗朗索瓦一世（国王）
+  noble_7: './art/noble_4.jpg', // 亨利八世（君主）
+  noble_8: './art/noble_1.jpg', // 凯瑟琳·美第奇（王后）
+  noble_9: './art/noble_5.jpg', // 苏莱曼大帝（苏丹）
+  noble_10: './art/noble_6.jpg', // 伊丽莎白一世（女王）
+};
 
 export function getNobleArt(noble: Noble): string {
-  const num = parseInt(noble.id.replace(/\D/g, ''), 10) || 1;
-  return NOBLE_PORTRAITS[(num - 1) % NOBLE_PORTRAITS.length];
+  return NOBLE_PORTRAIT_BY_ID[noble.id] ?? './art/noble_1.jpg';
 }
 
 const CITY_SCAPES = [

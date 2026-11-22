@@ -13,12 +13,12 @@ const BONUS_ACCENT: Record<GemColor, string> = {
 
 const ABILITY_BADGE: Record<string, string> = {
   double_gold: '2×金袋',
-  wild_satchel: '百搭挂钩',
-  double_bonus: '双宝石',
+  wild_satchel: '百搭',
+  double_bonus: '×2',
   wild_satchel_free_t1: '百搭+1级',
   reserve_noble: '定贵族',
-  free_tier2: '免费2级',
-  discard_bonuses: '献祭2卡',
+  free_tier2: '免2级',
+  discard_bonuses: '献祭2',
 };
 
 interface CardViewProps {
@@ -71,25 +71,24 @@ export const CardView: React.FC<CardViewProps> = ({
         .join(' ')}
       style={{ '--card-accent': accent } as React.CSSProperties}
     >
-      {/* Full-bleed Renaissance Oil Painting Artwork */}
+      {/* Full-bleed Renaissance Oil Painting */}
       <img src={artSrc} alt="" className="splendor-card__art" loading="eager" draggable={false} />
       <div className="splendor-card__vignette" />
-      <div className="splendor-card__inner-frame" />
 
-      {/* Top Classic Splendor Frosted Ivory / Crimson Header Band */}
+      {/* Steam-Exact Soft Frosted Top Band (lets painting breathe right underneath) */}
       <div className="splendor-card__header">
         <span className="splendor-card__points">{card.points > 0 ? card.points : ''}</span>
         <div className="splendor-card__bonus">
           {card.ability === 'double_gold' ? (
             <span className="splendor-card__special-gem">
-              <GemIcon color="gold" size={zoomed ? 24 : compact ? 13 : 17} />
-              <GemIcon color="gold" size={zoomed ? 24 : compact ? 13 : 17} />
+              <GemIcon color="gold" size={zoomed ? 26 : compact ? 13 : 18} />
+              <GemIcon color="gold" size={zoomed ? 26 : compact ? 13 : 18} />
             </span>
           ) : card.bonus ? (
             <span className="splendor-card__special-gem">
-              <GemIcon color={card.bonus} size={zoomed ? 26 : compact ? 14 : 19} />
+              <GemIcon color={card.bonus} size={zoomed ? 28 : compact ? 14 : 20} />
               {card.bonusCount > 1 && (
-                <GemIcon color={card.bonus} size={zoomed ? 26 : compact ? 14 : 19} />
+                <GemIcon color={card.bonus} size={zoomed ? 28 : compact ? 14 : 20} />
               )}
             </span>
           ) : (
@@ -109,14 +108,14 @@ export const CardView: React.FC<CardViewProps> = ({
       {stronghold && stronghold.count > 0 && (
         <div className="splendor-card__strongholds" title={`要塞 ×${stronghold.count}`}>
           {Array.from({ length: stronghold.count }).map((_, idx) => (
-            <StrongholdIcon key={idx} color={shColor} size={compact ? 11 : 15} />
+            <StrongholdIcon key={idx} color={shColor} size={compact ? 11 : 14} />
           ))}
         </div>
       )}
 
-      {blockedByEnemy && <div className="splendor-card__lock-badge">要塞封锁</div>}
+      {blockedByEnemy && <div className="splendor-card__lock-badge">封锁</div>}
 
-      {/* Bottom-Left Classic Circular Embossed Cost Coins */}
+      {/* Steam-Style Large Legible Glossy Cost Coins Clustered Bottom-Left */}
       <div className="splendor-card__costs">
         {card.ability === 'discard_bonuses' && card.sacrificeColor ? (
           <div className={`cost-pill cost-pill--${card.sacrificeColor} cost-pill--sacrifice`}>
